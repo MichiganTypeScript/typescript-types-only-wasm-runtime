@@ -10,7 +10,7 @@ This engine was built to service a project that aimed to demonstrate why Doom ca
 
 No, probably not.  What you’re viewing in this repo is basically an active crime scene.  There’s blood splattered about and although it’s clear the murder weapon is still in the house… it’s not clear exactly _where_ in the house it might be.
 
-It might sounds strange, but I, @dimitropoulos, have absolutely no emotional attachment to this code and negative-BigInt-zero interest in making it do even more.  It runs Doom.  That's enough.  We can all rest easy now.  If you'd like to get it to run Crysis - I'll happily pass the project off to you, but if you look at the commit history you're going to find I completely stopped working on it it the literal second it completed the mission.  I will, however, gladly spend a few hours on a call or something with anyone that might like to take this to the "next level" in the future, whatever you determine that to be.  It just won't be me.
+It might sounds strange, but I, @dimitropoulos, have absolutely no emotional attachment to this code and negative-BigInt-zero interest in making it do even more.  It runs Doom.  That's enough.  We can all rest easy now.  If you'd like to get it to run Crysis - I'll happily pass the project off to you, but if you look at the commit history you're going to find I completely stopped working on it the literal second it completed the mission.  I will, however, gladly spend a few hours on a call or something with anyone that might like to take this to the "next level" in the future, whatever you determine that to be.  It just won't be me.
 
 ## I have questions, thoughts, suggestions, ideas, etc.
 
