@@ -6,7 +6,8 @@
 // its heap, keeps the parsed and bound .d.ts files below the mark (lib.*.d.ts, ts-type-math, the
 // doom module), and rewinds to the mark after each run. A new instance per call would parse all of
 // them again every chunk. A trap leaves the instance in an unknown state, so it is dropped.
-import { makeRequest, memoryFileSystem, NotFoundError, parseReply } from "../tsrs/core.js";
+import { makeRequest, memoryFileSystem, NotFoundError } from "../tsrs/core.js";
+import { parseDiagnostics } from "./tsgo.js";
 
 const OP_READ = 0, OP_STAT = 1, OP_READ_DIR = 2, OP_REALPATH = 3, OP_WRITE = 4, OP_APPEND = 5, OP_REMOVE = 6, OP_CHTIMES = 7;
 const EXIT_CRASHED = 5;
@@ -44,7 +45,10 @@ let cur;
 
 const view = () => new DataView(memory.buffer);
 // Workers can reject subarray's species construction above 128 MiB; direct views work at those offsets.
-const bytes = (ptr = 0, len) => new Uint8Array(memory.buffer, ptr >>> 0, len);
+const bytes = (ptr = 0, len) => new Uint8Array(memory.buffer, ptr >>> 0, len === undefined ? undefined : len >>> 0);
+const getUint32 = (ptr) => view().getUint32(ptr >>> 0, true);
+const setUint32 = (ptr, value) => view().setUint32(ptr >>> 0, value, true);
+const setBigUint64 = (ptr, value) => view().setBigUint64(ptr >>> 0, value, true);
 const text = (ptr, len) => decoder.decode(bytes(ptr, len));
 const splitNul = (ptr, len) => {
   const b = bytes(ptr, len);
@@ -92,45 +96,47 @@ const fsCall = (op, ptr, len) => {
 
 const wasi = {
   args_sizes_get(argc, size) {
-    view().setUint32(argc, 0, true);
-    view().setUint32(size, 0, true);
+    setUint32(argc, 0);
+    setUint32(size, 0);
     return 0;
   },
   args_get: () => 0,
   environ_sizes_get(count, size) {
-    view().setUint32(count, 0, true);
-    view().setUint32(size, 0, true);
+    setUint32(count, 0);
+    setUint32(size, 0);
     return 0;
   },
   environ_get: () => 0,
   clock_time_get(id, _precision, out) {
     const ms = id === 0 ? performance.timeOrigin + performance.now() : performance.now();
-    view().setBigUint64(out, BigInt(Math.round(ms * 1e6)), true);
+    setBigUint64(out, BigInt(Math.round(ms * 1e6)));
     return 0;
   },
   clock_res_get(_id, out) {
-    view().setBigUint64(out, 1000n, true);
+    setBigUint64(out, 1000n);
     return 0;
   },
   random_get(ptr, len) {
-    for (let off = 0; off < len; off += 65536) crypto.getRandomValues(bytes(ptr + off, Math.min(65536, len - off)));
+    const p = ptr >>> 0, n = len >>> 0;
+    for (let off = 0; off < n; off += 65536) crypto.getRandomValues(bytes(p + off, Math.min(65536, n - off)));
     return 0;
   },
   fd_write(fd, iovs, count, written) {
     if (fd !== 1 && fd !== 2) return 8;
     let total = 0;
-    for (let i = 0; i < count; i++) {
-      const ptr = view().getUint32(iovs + i * 8, true);
-      const len = view().getUint32(iovs + i * 8 + 4, true);
-      (fd === 1 ? cur.out : cur.err).push(bytes().slice(ptr, ptr + len));
+    const base = iovs >>> 0;
+    for (let i = 0; i < (count >>> 0); i++) {
+      const ptr = getUint32(base + i * 8);
+      const len = getUint32(base + i * 8 + 4);
+      (fd === 1 ? cur.out : cur.err).push(bytes(ptr, len).slice());
       total += len;
     }
-    view().setUint32(written, total, true);
+    setUint32(written, total);
     return 0;
   },
   fd_fdstat_get(fd, out) {
     if (fd > 2) return 8;
-    for (let i = 0; i < 24; i++) view().setUint8(out + i, 0);
+    bytes(out, 24).fill(0);
     return 0;
   },
   fd_prestat_get: () => 8,
@@ -145,7 +151,7 @@ const wasi = {
 
 async function getInstance(module) {
   if (instance) return instance;
-  const imports = { tsrs_host: { fs: fsCall, fs_take: (ptr) => bytes().set(cur.staged, ptr) }, wasi_snapshot_preview1: {} };
+  const imports = { tsrs_host: { fs: fsCall, fs_take: (ptr) => bytes(ptr, cur.staged.length).set(cur.staged) }, wasi_snapshot_preview1: {} };
   for (const imp of WebAssembly.Module.imports(module)) {
     if (imp.module === "wasi_snapshot_preview1") imports.wasi_snapshot_preview1[imp.name] = wasi[imp.name] ?? (() => 52);
   }
@@ -162,16 +168,20 @@ export async function tsc(args, options = {}) {
   const inst = await getInstance(module);
   const host = memoryFileSystem(options.files ?? {}, { caseInsensitive: !!options.caseInsensitive });
   const json = options.diagnostics === "json";
+  const cwd = options.cwd ?? "/";
   cur = { host, out: [], err: [], staged: new Uint8Array(0) };
-  const request = makeRequest([...args], { cwd: options.cwd ?? "/", json, caseInsensitive: !!options.caseInsensitive });
+  // Stream `--pretty false` diagnostics through fd_write during execute.CommandLine:
+  // tsgo-teamchong's JSON output buffer is 8 MiB below the heap watermark, so once
+  // state.d.ts exceeds ~8 MiB (frame 800+), json.Marshal allocates above the watermark
+  // and ResetWasmHeapToWatermark() zeros it before tsrs_run() returns.
+  const runArgs = json ? ["--pretty", "false", ...args] : [...args];
+  const request = makeRequest(runArgs, { cwd, json: false, caseInsensitive: !!options.caseInsensitive });
   let exitCode;
-  let reply = new Uint8Array(0);
   try {
     const req = encoder.encode([request.cwd, String(request.flags ?? 0), ...request.args].join("\0"));
-    bytes().set(req, inst.exports.tsrs_input(req.length));
+    const inPtr = inst.exports.tsrs_input(req.length);
+    bytes(inPtr, req.length).set(req);
     exitCode = inst.exports.tsrs_run();
-    const out = inst.exports.tsrs_output();
-    reply = bytes().slice(out, out + inst.exports.tsrs_output_len());
   } catch (e) {
     if (e instanceof WasiExit) {
       exitCode = e.code;
@@ -185,11 +195,12 @@ export async function tsc(args, options = {}) {
     }
   }
   const joined = (chunks) => chunks.map((c) => decoder.decode(c, { stream: true })).join("") + decoder.decode();
+  const stdout = joined(cur.out);
   return {
     exitCode,
-    stdout: joined(cur.out),
+    stdout,
     stderr: joined(cur.err),
-    diagnostics: json ? parseReply(reply) : undefined,
+    diagnostics: json ? parseDiagnostics(stdout, cwd) : undefined,
     files: Object.fromEntries(host.written),
     memoryBytes: memory.buffer.byteLength,
   };
