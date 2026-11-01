@@ -44,6 +44,27 @@ self.customTSWorkerFactory = (TSWorker, tsArg) => class extends TSWorker {
 
     // A Move type as [forward, side (+ right), turn (+ left), buttons], a ticcmd's fields.
     const MOVE = ["forward", "back", "strafeLeft", "strafeRight", "turnLeft", "turnRight", "fire", "use"];
+    const STAGES = ["E1M1", "E1M2", "E1M3", "E1M4", "E1M5", "E1M6", "E1M7", "E1M8", "E1M9"];
+    const WEAPONS = ["fist", "chainsaw", "pistol", "shotgun", "chaingun", "rocket"];
+    const boolOf = (t, name) => {
+      const s = show(t);
+      if (s === "true") return true;
+      if (s === "false") return false;
+      throw new Error(`${name} must be true or false, got ${s}`);
+    };
+    const intOf = (t, name, min, max) => {
+      const n = literal(t);
+      if (!(Number.isInteger(n) && n >= min && n <= max)) {
+        throw new Error(`${name} must be an integer ${min}..${max}, got ${show(t)}`);
+      }
+      return n;
+    };
+    const numTupleOf = (t, name, len, min, max) => {
+      if (!isTuple(t)) throw new Error(`${name} must be a ${len}-number tuple, got ${show(t)}`);
+      const args = checker.getTypeArguments(t);
+      if (args.length !== len) throw new Error(`${name} must have ${len} numbers, got ${args.length}`);
+      return args.map((a, k) => intOf(a, `${name}[${k}]`, min, max));
+    };
     const moveOf = (t) => {
       const m = {};
       for (const sym of checker.getPropertiesOfType(t)) {
@@ -83,15 +104,52 @@ self.customTSWorkerFactory = (TSWorker, tsArg) => class extends TSWorker {
         try {
           if (isTuple(e)) return { keys: keysOf(e) };
           const keys = prop(e, "keys");
+          const warp = prop(e, "warp");
+          const skill = prop(e, "skill");
+          const weapon = prop(e, "weapon");
+          const health = prop(e, "health");
+          const armor = prop(e, "armor");
+          const armorType = prop(e, "armorType");
+          const backpack = prop(e, "backpack");
+          const god = prop(e, "god");
+          const bossArena = prop(e, "bossArena");
+          const owned = prop(e, "owned");
+          const ammo = prop(e, "ammo");
+          const rnd = prop(e, "rnd");
+          const prnd = prop(e, "prnd");
           const playDemo = prop(e, "playDemo");
           const extendDemo = prop(e, "extendDemo");
           const setDemoTic = prop(e, "setDemoTic");
-          if (!keys && !playDemo && !extendDemo && !setDemoTic)
-            throw new Error(`expected Key[] or { keys, playDemo, extendDemo, setDemoTic }, got ${show(e)}`);
+          const hasLoadout = !!(warp || weapon || health || armor || god || bossArena);
+          if (!keys && !hasLoadout && !playDemo && !extendDemo && !setDemoTic)
+            throw new Error(`expected Key[] or { keys, warp, weapon, health, armor, god, playDemo, extendDemo, setDemoTic }, got ${show(e)}`);
           if (!!playDemo + !!extendDemo + !!setDemoTic > 1) throw new Error("one of playDemo, extendDemo, setDemoTic per tic");
+          let warpStage;
+          if (warp) {
+            warpStage = literal(warp);
+            if (!STAGES.includes(warpStage)) throw new Error(`warp must be one of ${STAGES.join(", ")}, got ${show(warp)}`);
+          }
+          let weaponName;
+          if (weapon) {
+            weaponName = literal(weapon);
+            if (!WEAPONS.includes(weaponName)) throw new Error(`weapon must be one of ${WEAPONS.join(", ")}, got ${show(weapon)}`);
+          }
           const set = setDemoTic && checker.getTypeArguments(setDemoTic);
           return {
             keys: keys ? keysOf(keys) : [],
+            warp: warpStage,
+            skill: skill && intOf(skill, "skill", 1, 5),
+            weapon: weaponName,
+            health: health && intOf(health, "health", 1, 200),
+            armor: armor && intOf(armor, "armor", 0, 200),
+            armorType: armorType && intOf(armorType, "armorType", 0, 2),
+            backpack: backpack && boolOf(backpack, "backpack"),
+            god: god && boolOf(god, "god"),
+            bossArena: bossArena && boolOf(bossArena, "bossArena"),
+            owned: owned && numTupleOf(owned, "owned", 9, 0, 1),
+            ammo: ammo && numTupleOf(ammo, "ammo", 4, 0, 600),
+            rnd: rnd && intOf(rnd, "rnd", 0, 255),
+            prnd: prnd && intOf(prnd, "prnd", 0, 255),
             playDemo: playDemo && movesOf(playDemo),
             extendDemo: extendDemo && movesOf(extendDemo),
             setDemoTic: set && [literal(set[0]), moveOf(set[1])],

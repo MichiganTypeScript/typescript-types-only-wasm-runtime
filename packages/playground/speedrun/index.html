@@ -460,16 +460,39 @@
   <section class="card editorWrap">
     <div class="row">
       <label class="meta" title="Loads the preset's script into the editor as a starting point">Start from
-        <select id="presetSel">
-          <option value="tas" selected>E1M1 0:07.69 UV-Speed TAS (277 tics)</option>
-          <option value="ep1_tas">Episode 1 (All 8 Stages E1M1–E1M8) 3:23 UV-Speed TAS (7423 tics)</option>
+      <select id="presetSel">
+        <optgroup label="Boss Fight &amp; Stage Starters (Record Your Run)">
+          <option value="e1m8_boss">E1M8 Boss Fight — Bruiser Brothers Arena (Rocket Launcher, 185 tics)</option>
+          <option value="stage_e1m1">Start Stage 1 — E1M1: Hangar (UV + Shotgun, 57 tics)</option>
+          <option value="stage_e1m2">Start Stage 2 — E1M2: Nuclear Plant (UV + Shotgun, 57 tics)</option>
+          <option value="stage_e1m3">Start Stage 3 — E1M3: Toxin Refinery (UV + Shotgun, 57 tics)</option>
+          <option value="stage_e1m4">Start Stage 4 — E1M4: Command Control (UV + Chaingun, 54 tics)</option>
+          <option value="stage_e1m5">Start Stage 5 — E1M5: Phobos Lab (UV + Chaingun, 57 tics)</option>
+          <option value="stage_e1m6">Start Stage 6 — E1M6: Central Processing (UV + Chaingun, 57 tics)</option>
+          <option value="stage_e1m7">Start Stage 7 — E1M7: Computer Station (UV + Chaingun, 59 tics)</option>
+          <option value="stage_e1m8">Start Stage 8 — E1M8: Phobos Anomaly (UV + Rocket Launcher, 104 tics)</option>
+          <option value="stage_e1m9">Start Secret Stage — E1M9: Military Base (UV + Rocket Launcher, 57 tics)</option>
+        </optgroup>
+        <optgroup label="Stage UV-Speed TAS Runs (Frame-1 Stage Splits)">
+          <option value="tas" selected>E1M1: Hangar — 0:07.69 UV-Speed TAS (277 tics)</option>
+          <option value="e1m2_tas">E1M2: Nuclear Plant — 0:18.57 UV-Speed TAS (650 tics)</option>
+          <option value="e1m3_tas">E1M3: Toxin Refinery — 0:30.71 UV-Speed TAS (1075 tics)</option>
+          <option value="e1m4_tas">E1M4: Command Control — 0:10.60 UV-Speed TAS (371 tics)</option>
+          <option value="e1m5_tas">E1M5: Phobos Lab — 0:34.69 UV-Speed TAS (1214 tics)</option>
+          <option value="e1m6_tas">E1M6: Central Processing — 0:37.00 UV-Speed TAS (1295 tics)</option>
+          <option value="e1m7_tas">E1M7: Computer Station — 0:52.66 UV-Speed TAS (1843 tics)</option>
+          <option value="e1m8_tas">E1M8: Phobos Anomaly (Boss Stage) — 0:16.74 UV-Speed TAS (586 tics)</option>
+        </optgroup>
+        <optgroup label="Full Episode &amp; Classic E1M1 Runs">
+          <option value="ep1_tas">Episode 1 (All 8 Stages E1M1-E1M8) 3:23 UV-Speed TAS (7423 tics)</option>
           <option value="uvmax_tas">E1M1 0:18.97 UV-Max TAS — 100% Kills &amp; Secrets (672 tics)</option>
           <option value="uvspeed_rta">E1M1 0:08.74 UV-Speed / Pacifist RTA World Record (314 tics)</option>
           <option value="uvmax_rta">E1M1 0:24.83 UV-Max RTA World Record (877 tics)</option>
           <option value="clear">E1M1 Clear (1000 tics)</option>
           <option value="kill">E1M1 Kill Run (1999 tics)</option>
-          <option value="custom">Your edits</option>
-        </select>
+        </optgroup>
+        <option value="custom">Your edits</option>
+      </select>
       </label>
       <label class="meta" title="Which TypeScript type checker, compiled to WebAssembly, runs your script">Checker
         <select id="checkerSel">
@@ -584,10 +607,34 @@ type Move = {
   readonly use?: true;
 };
 
-/** One tic: the keys held during it, or a demo action. */
+type Stage = "E1M1" | "E1M2" | "E1M3" | "E1M4" | "E1M5" | "E1M6" | "E1M7" | "E1M8" | "E1M9";
+type Skill = 1 | 2 | 3 | 4 | 5;
+type LoadoutWeapon = "fist" | "chainsaw" | "pistol" | "shotgun" | "chaingun" | "rocket";
+
+/** One tic: the keys held during it, a stage/loadout warp, or a demo action. */
 type Step = readonly Key[] | {
   readonly keys?: readonly Key[];
-  /** Restart E1M1 and replay these moves, one per tic. The keyboard is ignored while it plays. */
+  /** Warp directly to any stage (E1M1-E1M9), skipping the menu and screen wipe. */
+  readonly warp?: Stage;
+  /** Skill 1-5 (1 = Too Young To Die, 3 = Hurt Me Plenty, 4 = Ultra-Violence, 5 = Nightmare; default 4). */
+  readonly skill?: Skill;
+  /** Equip weapon with full ammo (instantly raised and ready to fire on the next tic). */
+  readonly weapon?: LoadoutWeapon;
+  /** Player health (1-200; default 100). */
+  readonly health?: number;
+  /** Player armor (0-200; >100 gives MegaArmor). */
+  readonly armor?: number;
+  readonly armorType?: 0 | 1 | 2;
+  readonly backpack?: boolean;
+  /** God mode / invulnerability (IDDQD). */
+  readonly god?: boolean;
+  /** On E1M8: true spawns directly inside the Star Arena facing the two Barons of Hell ("Bruiser Brothers"). */
+  readonly bossArena?: boolean;
+  readonly owned?: readonly [number, number, number, number, number, number, number, number, number];
+  readonly ammo?: readonly [number, number, number, number];
+  readonly rnd?: number;
+  readonly prnd?: number;
+  /** Restart E1M1 (or the warped stage) and replay these moves, one per tic. The keyboard is ignored while it plays. */
   readonly playDemo?: readonly Move[];
   /** Add moves to the end of the demo that is playing. */
   readonly extendDemo?: readonly Move[];
@@ -679,14 +726,48 @@ function legacySteps(text, ticsPerLine = 1) {
 // Where the demo goes in doom-keys.wasm's memory and the globals that start
 // playback (bench/doom/tas-keys.mjs). Scripts never see these: playDemo,
 // extendDemo and setDemoTic become the memory writes below.
-const DEMO_AT = 8192;          // under the stack, which never gets this low
-const DEMO_P = 4408264;        // G_ReadDemoTiccmd's cursor into the demo
-const DEMOPLAYBACK = 4407472;  // G_Ticker reads the demo instead of the keyboard when this is 1
-const PLAYER0_STATE = 4406324; // players[0].playerstate
-const PST_REBORN = 2;          // a death's state: G_Ticker reloads the map, as G_InitNew does
-const RNDINDEX = 4411108;      // M_Random's index
-const PRNDINDEX = 4411112;     // P_Random's index
+const DEMO_AT = 8192;            // under the stack, which never gets this low
+const WIPE_GAMESTATE = 87000;    // 0 = GS_LEVEL (skips the 30-frame melt screen wipe)
+const MAKETIC = 4403988;         // local ticcmd write cursor; setting == gametic removes 5-tic menu-boot lag
+const OLDENTERTICS = 4404760;    // NetUpdate's last-seen clock tic
+const GAMEMAP = 4406284;         // current stage number (1..9)
+const PLAYERINGAME0 = 4406304;   // playeringame[0]
+const PLAYER0_STATE = 4406324;   // players[0].playerstate
+const PST_REBORN = 2;            // a death's state: G_Ticker reloads the map, as G_InitNew does
+const PLAYER0_HEALTH = 4406352;
+const PLAYER0_ARMOR = 4406356;
+const PLAYER0_ARMORTYPE = 4406360;
+const PLAYER0_BACKPACK = 4406412;
+const PLAYER0_READY = 4406432;
+const PLAYER0_PENDING = 4406436;
+const PLAYER0_OWNED = 4406440;   // weaponowned[0..8]
+const PLAYER0_AMMO = 4406476;    // ammo[0..3]: bullets, shells, cells, rockets
+const PLAYER0_MAXAMMO = 4406492; // maxammo[0..3]
+const PLAYER0_ATTACKDOWN = 4406508;
+const PLAYER0_USEDOWN = 4406512;
+const PLAYER0_CHEATS = 4406516;  // 2 = CF_GODMODE
+const PLAYER0_PSPRITE_STATE = 4406564;
+const PLAYER0_PSPRITE_TICS = 4406568;
+const PLAYER0_PSPRITE_SX = 4406572;
+const PLAYER0_PSPRITE_SY = 4406576;
+const GAMEEPISODE = 4407440;
+const GAMESKILL = 4407444;       // 0..4
+const GAMEACTION = 4407456;      // 1 = ga_loadlevel, 2 = ga_newgame
+const DEMOPLAYBACK = 4407472;    // G_Ticker reads the demo instead of the keyboard when this is 1
+const USERGAME = 4408260;
+const DEMO_P = 4408264;          // G_ReadDemoTiccmd's cursor into the demo
+const MENUACTIVE = 4411028;      // 0 closes the skill menu so keyboard events go to gameplay
+const RNDINDEX = 4411108;        // M_Random's index
+const PRNDINDEX = 4411112;       // P_Random's index
 const DEMO_END = 0x80;
+const WEAPON_INFO = {
+  fist: { idx: 0, readyState: 88792 },
+  pistol: { idx: 1, readyState: 89016, ammoIdx: 0, defaultAmmo: 200 },
+  shotgun: { idx: 2, readyState: 89240, ammoIdx: 1, defaultAmmo: 50 },
+  chaingun: { idx: 3, readyState: 90108, ammoIdx: 0, defaultAmmo: 200 },
+  rocket: { idx: 4, readyState: 90332, ammoIdx: 3, defaultAmmo: 50 },
+  chainsaw: { idx: 7, readyState: 90612 },
+};
 
 // A ticcmd as stored in a demo: forward, side (+ right), angleturn's high byte (+ left), buttons.
 const s8 = (b) => (b << 24) >> 24;
@@ -819,6 +900,80 @@ function stepsFromLmp({ lmp, hold = 3 }) {
 // demo already in memory, so extendDemo writes past it.
 function demoPokes(st, demoLen, i) {
   const words = (moves) => moves.map(ticWord);
+  if (st.warp) {
+    const mapNum = Number(st.warp.slice(3));
+    const skillNum = (st.skill ?? 4) - 1;
+    const poke = [];
+    let len = demoLen;
+    if (st.playDemo) {
+      const w = words(st.playDemo);
+      len = w.length;
+      poke.push(...w.map((x, k) => [DEMO_AT + 4 * k, x]), [DEMO_AT + 4 * w.length, DEMO_END]);
+    }
+    if (st.bossArena && mapNum === 8) {
+      poke.push(
+        [987188, (3750 << 16) | 416],
+        [987192, (1 << 16) | 270],
+        [987768, (3150 << 16) | 384],
+        [987772, (3003 << 16) | 90],
+        [987776, (448 << 16) | 7],
+        [987780, (90 << 16) | 3150],
+      );
+    }
+    const hasCustomPlayer = !!(st.weapon || st.health !== undefined || st.armor !== undefined || st.backpack !== undefined || st.god !== undefined || st.owned || st.ammo);
+    poke.push(
+      [MENUACTIVE, 0],
+      [WIPE_GAMESTATE, 0],
+      [GAMESKILL, skillNum],
+      [GAMEEPISODE, 1],
+      [GAMEMAP, mapNum],
+      [GAMEACTION, 1],
+      [PLAYERINGAME0, 1],
+      [USERGAME, st.playDemo ? 0 : 1],
+      [DEMOPLAYBACK, st.playDemo ? 1 : 0],
+      [PLAYER0_STATE, hasCustomPlayer ? 0 : PST_REBORN],
+    );
+    if (st.playDemo) {
+      poke.push([DEMO_P, DEMO_AT]);
+    } else {
+      poke.push([MAKETIC, 65 + i], [OLDENTERTICS, 1000000]);
+    }
+    const wInfo = WEAPON_INFO[st.weapon ?? "pistol"];
+    if (hasCustomPlayer) {
+      const hp = st.health ?? 100;
+      const arm = st.armor ?? 0;
+      const armType = st.armorType ?? (arm > 100 ? 2 : arm > 0 ? 1 : 0);
+      const bp = st.backpack ? 1 : 0;
+      const owned = st.owned ? [...st.owned] : [1, 1, 0, 0, 0, 0, 0, 0, 0];
+      if (!st.owned && wInfo) owned[wInfo.idx] = 1;
+      const maxAmmo = bp ? [400, 100, 600, 100] : [200, 50, 300, 50];
+      const ammo = st.ammo ? [...st.ammo] : [50, 0, 0, 0];
+      if (!st.ammo && wInfo?.ammoIdx !== undefined) ammo[wInfo.ammoIdx] = wInfo.defaultAmmo;
+      poke.push(
+        [PLAYER0_HEALTH, hp],
+        [PLAYER0_ARMOR, arm],
+        [PLAYER0_ARMORTYPE, armType],
+        [PLAYER0_BACKPACK, bp],
+        [PLAYER0_READY, wInfo.idx],
+        [PLAYER0_PENDING, st.playDemo ? 10 : wInfo.idx],
+        ...owned.map((v, k) => [PLAYER0_OWNED + 4 * k, v]),
+        ...ammo.map((v, k) => [PLAYER0_AMMO + 4 * k, v]),
+        ...maxAmmo.map((v, k) => [PLAYER0_MAXAMMO + 4 * k, v]),
+      );
+      if (st.god !== undefined) poke.push([PLAYER0_CHEATS, st.god ? 2 : 0]);
+    }
+    if (st.rnd !== undefined) poke.push([RNDINDEX, st.rnd]);
+    if (st.prnd !== undefined) poke.push([PRNDINDEX, st.prnd]);
+    const nextPoke = !st.playDemo && st.weapon && wInfo ? [
+      [PLAYER0_ATTACKDOWN, 0],
+      [PLAYER0_USEDOWN, 0],
+      [PLAYER0_PSPRITE_STATE, wInfo.readyState],
+      [PLAYER0_PSPRITE_TICS, 1],
+      [PLAYER0_PSPRITE_SX, 65536],
+      [PLAYER0_PSPRITE_SY, 2097152],
+    ] : undefined;
+    return { len, poke, nextPoke };
+  }
   if (st.playDemo) {
     const w = words(st.playDemo);
     return {
@@ -830,8 +985,8 @@ function demoPokes(st, demoLen, i) {
       ],
     };
   }
-  if (demoLen === undefined) throw new Error(`Inputs[${i}]: no demo to change; use playDemo first`);
   if (st.extendDemo) {
+    if (demoLen === undefined) throw new Error(`Inputs[${i}]: no demo to change; use playDemo first`);
     const w = words(st.extendDemo);
     const at = DEMO_AT + 4 * demoLen;
     return {
@@ -839,9 +994,38 @@ function demoPokes(st, demoLen, i) {
       poke: [...w.map((x, k) => [at + 4 * k, x]), [at + 4 * w.length, DEMO_END]],
     };
   }
-  const [n, move] = st.setDemoTic;
-  if (!(Number.isInteger(n) && n >= 0 && n < demoLen)) throw new Error(`Inputs[${i}]: setDemoTic ${n}: the demo has tics 0 to ${demoLen - 1}`);
-  return { len: demoLen, poke: [[DEMO_AT + 4 * n, ticWord(move)]] };
+  if (st.setDemoTic) {
+    if (demoLen === undefined) throw new Error(`Inputs[${i}]: no demo to change; use playDemo first`);
+    const [n, move] = st.setDemoTic;
+    if (!(Number.isInteger(n) && n >= 0 && n < demoLen)) throw new Error(`Inputs[${i}]: setDemoTic ${n}: the demo has tics 0 to ${demoLen - 1}`);
+    return { len: demoLen, poke: [[DEMO_AT + 4 * n, ticWord(move)]] };
+  }
+  if (st.weapon || st.health !== undefined || st.armor !== undefined || st.god !== undefined) {
+    const poke = [];
+    if (st.health !== undefined) poke.push([PLAYER0_HEALTH, st.health]);
+    if (st.armor !== undefined) {
+      const armType = st.armorType ?? (st.armor > 100 ? 2 : st.armor > 0 ? 1 : 0);
+      poke.push([PLAYER0_ARMOR, st.armor], [PLAYER0_ARMORTYPE, armType]);
+    }
+    if (st.god !== undefined) poke.push([PLAYER0_CHEATS, st.god ? 2 : 0]);
+    if (st.weapon) {
+      const wInfo = WEAPON_INFO[st.weapon];
+      poke.push(
+        [PLAYER0_READY, wInfo.idx],
+        [PLAYER0_PENDING, 10],
+        [PLAYER0_OWNED + 4 * wInfo.idx, 1],
+        ...(wInfo.ammoIdx !== undefined ? [[PLAYER0_AMMO + 4 * wInfo.ammoIdx, wInfo.defaultAmmo]] : []),
+        [PLAYER0_ATTACKDOWN, 0],
+        [PLAYER0_USEDOWN, 0],
+        [PLAYER0_PSPRITE_STATE, wInfo.readyState],
+        [PLAYER0_PSPRITE_TICS, 1],
+        [PLAYER0_PSPRITE_SX, 65536],
+        [PLAYER0_PSPRITE_SY, 2097152],
+      );
+    }
+    return { len: demoLen, poke };
+  }
+  return { len: demoLen, poke: undefined };
 }
 
 const SCRIPT_URI = "inmemory://model/inputs.ts";
@@ -852,16 +1036,22 @@ async function evalScript() {
   const res = await worker.evalInputs(SCRIPT_URI);
   if (res.error) throw new Error(res.error);
   let demoLen;
+  let carryPoke;
   const steps = res.steps.map((st, i) => {
     for (const k of st.keys) if (!BITS.includes(k)) throw new Error(`Inputs[${i}]: "${k}" is not a Key`);
-    let poke;
-    if (st.playDemo || st.extendDemo || st.setDemoTic) ({ len: demoLen, poke } = demoPokes(st, demoLen, i));
+    const resPoke = demoPokes(st, demoLen, i);
+    demoLen = resPoke.len;
+    let poke = resPoke.poke;
+    if (carryPoke) {
+      poke = poke ? [...carryPoke, ...poke] : carryPoke;
+      carryPoke = undefined;
+    }
+    if (resPoke.nextPoke) carryPoke = resPoke.nextPoke;
     return { keys: st.keys, poke };
   });
   const labels = labelsOf(steps);
   return steps.map((st, i) => ({ ...st, label: labels[i] }));
 }
-
 // The timeline text for each tic, from the keys and memory writes alone, so a
 // saved run's labels can be rebuilt from its keyScript whatever the script said.
 function labelsOf(steps) {
@@ -876,10 +1066,14 @@ function labelsOf(steps) {
 }
 function demoAction(poke) {
   if (!poke?.length) return "";
+  const mapPoke = poke.find(([a]) => a === GAMEMAP);
+  const boss = poke.some(([a]) => a === 987188);
   const n = poke.findIndex(([, w]) => w === DEMO_END);
-  if (poke.some(([a]) => a === DEMO_P)) return `play demo (${n} tics)`;
+  if (poke.some(([a]) => a === DEMO_P)) return mapPoke ? `warp E1M${mapPoke[1]} + play demo (${n} tics)` : `play demo (${n} tics)`;
+  if (mapPoke) return boss ? `warp E1M${mapPoke[1]} boss arena` : `warp E1M${mapPoke[1]}`;
   if (n >= 0 && n === poke.length - 1) return `extend demo (${n} tics)`;
   if (poke.length === 1 && poke[0][0] >= DEMO_AT) return `set demo tic ${(poke[0][0] - DEMO_AT) / 4}`;
+  if (poke.some(([a]) => a === PLAYER0_PSPRITE_STATE)) return "equip weapon";
   return `write memory (${poke.length})`;
 }
 
@@ -1830,7 +2024,162 @@ async function runCurrent() {
 // A preset only fills the editor: the user amends it and starts the check with
 // Run. Switching presets never kills a check that is in progress.
 let editorEdited = false;
+const STAGE_TAS_SPLITS = {
+  e1m2_tas: { map: 2, title: "E1M2: Nuclear Plant", time: "0:18.57", start: 295, end: 945, hp: 98, arm: 1, armType: 1, backpack: false, weapon: "shotgun", owned: [1,1,1,0,0,0,0,0,0], ammo: [42,4,0,0], rnd: 44, prnd: 112 },
+  e1m3_tas: { map: 3, title: "E1M3: Toxin Refinery", time: "0:30.71", start: 960, end: 2035, hp: 100, arm: 0, armType: 0, backpack: false, weapon: "shotgun", owned: [1,1,1,0,0,0,0,0,0], ammo: [75,23,0,0], rnd: 224, prnd: 153 },
+  e1m4_tas: { map: 4, title: "E1M4: Command Control", time: "0:10.60", start: 2050, end: 2421, hp: 102, arm: 1, armType: 1, backpack: false, weapon: "shotgun", owned: [1,1,1,0,0,0,0,0,0], ammo: [130,43,0,0], rnd: 72, prnd: 62 },
+  e1m5_tas: { map: 5, title: "E1M5: Phobos Lab", time: "0:34.69", start: 2436, end: 3650, hp: 105, arm: 1, armType: 1, backpack: false, weapon: "shotgun", owned: [1,1,1,0,0,0,0,0,0], ammo: [134,42,0,0], rnd: 211, prnd: 123 },
+  e1m6_tas: { map: 6, title: "E1M6: Central Processing", time: "0:37.00", start: 3665, end: 4960, hp: 89, arm: 94, armType: 1, backpack: false, weapon: "shotgun", owned: [1,1,1,0,0,0,0,0,0], ammo: [174,49,0,0], rnd: 206, prnd: 197 },
+  e1m7_tas: { map: 7, title: "E1M7: Computer Station", time: "0:52.66", start: 4975, end: 6818, hp: 40, arm: 77, armType: 1, backpack: true, weapon: "shotgun", owned: [1,1,1,1,1,0,0,0,0], ammo: [188,67,20,1], rnd: 73, prnd: 1 },
+  e1m8_tas: { map: 8, title: "E1M8: Phobos Anomaly (Boss Stage)", time: "0:16.74", start: 6833, end: 7419, hp: 112, arm: 59, armType: 1, backpack: true, weapon: "shotgun", owned: [1,1,1,1,1,0,0,0,0], ammo: [218,88,20,1], rnd: 30, prnd: 130 },
+};
+const STAGE_STARTERS = {
+  e1m8_boss: {
+    note: "E1M8 Phobos Anomaly — Bruiser Brothers Boss Fight (2x Baron of Hell in the Star Arena)",
+    warp: `{ warp: "E1M8", bossArena: true, skill: 4, weapon: "rocket", health: 200, armor: 200 }`,
+    lines: [
+      "  ...hold<[TURN_LEFT, FIRE], 2>, // aim at right Baron of Hell and fire rockets",
+      "  ...hold<[FIRE], 112>,          // 5 rockets take down the first Baron (1000 HP)",
+      "  ...hold<[TURN_RIGHT, FIRE], 4>, // pivot to the second Baron of Hell",
+      "  ...hold<[FIRE], 66>,           // finish the second Baron to lower Sector Tag 666",
+    ],
+  },
+  stage_e1m1: {
+    note: "Stage 1 Starter — E1M1: Hangar (Ultra-Violence + Shotgun)",
+    warp: `{ warp: "E1M1", skill: 4, weapon: "shotgun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[TURN_RIGHT, FORWARD, RUN], 15>,",
+      "  ...hold<[FORWARD, RUN], 25>,",
+      "  ...hold<[TURN_LEFT, FORWARD, RUN], 15>,",
+    ],
+  },
+  stage_e1m2: {
+    note: "Stage 2 Starter — E1M2: Nuclear Plant (Ultra-Violence + Shotgun)",
+    warp: `{ warp: "E1M2", skill: 4, weapon: "shotgun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 25>,",
+      "  ...hold<[TURN_RIGHT, FORWARD, RUN], 15>,",
+      "  ...hold<[FORWARD, RUN, FIRE], 15>,",
+    ],
+  },
+  stage_e1m3: {
+    note: "Stage 3 Starter — E1M3: Toxin Refinery (Ultra-Violence + Shotgun)",
+    warp: `{ warp: "E1M3", skill: 4, weapon: "shotgun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 18>,",
+      "  ...hold<[USE], 2>, // open the starting door",
+      "  ...hold<[FORWARD, RUN], 20>,",
+      "  ...hold<[FIRE], 15>, // blast the shotgun guys in the dark room",
+    ],
+  },
+  stage_e1m4: {
+    note: "Stage 4 Starter — E1M4: Command Control (Ultra-Violence + Chaingun)",
+    warp: `{ warp: "E1M4", skill: 4, weapon: "chaingun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 25>,",
+      "  ...hold<[USE], 2>, // open the starting door",
+      "  ...hold<[FORWARD, RUN], 25>,",
+    ],
+  },
+  stage_e1m5: {
+    note: "Stage 5 Starter — E1M5: Phobos Lab (Ultra-Violence + Chaingun)",
+    warp: `{ warp: "E1M5", skill: 4, weapon: "chaingun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 30>, // charge across the toxic nukage",
+      "  ...hold<[FORWARD, RUN, FIRE], 25>,",
+    ],
+  },
+  stage_e1m6: {
+    note: "Stage 6 Starter — E1M6: Central Processing (Ultra-Violence + Chaingun)",
+    warp: `{ warp: "E1M6", skill: 4, weapon: "chaingun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 25>,",
+      "  ...hold<[TURN_LEFT, FORWARD, RUN], 12>,",
+      "  ...hold<[FORWARD, RUN, FIRE], 18>,",
+    ],
+  },
+  stage_e1m7: {
+    note: "Stage 7 Starter — E1M7: Computer Station (Ultra-Violence + Chaingun)",
+    warp: `{ warp: "E1M7", skill: 4, weapon: "chaingun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 20>,",
+      "  ...hold<[USE], 2>, // open the starting door",
+      "  ...hold<[FORWARD, RUN], 20>,",
+      "  ...hold<[FORWARD, RUN, FIRE], 15>,",
+    ],
+  },
+  stage_e1m8: {
+    note: "Stage 8 Starter — E1M8: Phobos Anomaly (20-Barrel Pinky Room Chain Explosion)",
+    warp: `{ warp: "E1M8", skill: 4, weapon: "rocket", health: 100, armor: 100, god: true }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 8>,",
+      "  ...hold<[USE], 2>, // open the starting door",
+      "  ...hold<[FORWARD, RUN], 55>, // wait for the tall door to rise",
+      "  ...hold<[TURN_LEFT, FIRE], 2>, // fire a rocket into the 20 barrels",
+      "  ...hold<[FORWARD, RUN, FIRE], 35>,",
+    ],
+  },
+  stage_e1m9: {
+    note: "Secret Stage Starter — E1M9: Military Base (Ultra-Violence + Rocket Launcher)",
+    warp: `{ warp: "E1M9", skill: 4, weapon: "rocket", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 18>,",
+      "  ...hold<[TURN_LEFT, FORWARD, RUN], 9>, // aim at the central Imp cage",
+      "  ...hold<[FORWARD, RUN, FIRE], 28>,",
+    ],
+  },
+};
+function stageTasScript(sp) {
+  const bin = atob(window.PRESETS.ep1_tas.lmp);
+  const view = new DataView(Uint8Array.from(bin, (c) => c.charCodeAt(0)).buffer);
+  const tics = [];
+  for (let i = sp.start; i < sp.end; i++) tics.push(view.getUint32(i * 4, true));
+  const isBoss = sp.map === 8;
+  const ext = isBoss
+    ? `  {\n    extendDemo: [\n      ...Repeat<{}, 10>, // fade into the Episode 1 victory finale screen\n    ],\n  },\n  ...none<2>,`
+    : `  // The demo's last tic presses the exit switch. Doom then shows the E1M${sp.map} finished\n  // screen, counting kills, items, secrets and TIME up from 0. Keep the demo going\n  // 40 more tics so Doom has input while that happens.\n  {\n    extendDemo: [\n      ...Repeat<{}, 3>, // the screen wipes to the finished screen\n      { use: true }, // Use skips the count-up, so the final TIME shows at once\n      ...Repeat<{}, 36>,\n    ],\n  },\n  ...none<3>,`;
+  return `// Based on: almostmatt1 & 38_ViTa_38's ${sp.title} ${sp.time} UV-Speed TAS (Frame-1 Stage Split)
+// One element per tic, starting directly on E1M${sp.map}. Edit any line, then Run.
+${KEY_HEADER}
+// The TAS is a Doom demo: one recorded move per tic, replayed by Doom itself.
+// forward, back, strafeLeft, strafeRight: speed (50 is running, 25 walking).
+// turnLeft, turnRight: a mouse turn.
+type Demo = [
+${moveLines(tics).join("\n")}
+];
+
+type Inputs = Run<[
+  ...none<1>,
+  {
+    warp: "E1M${sp.map}",
+    skill: 4,
+    health: ${sp.hp},
+    armor: ${sp.arm},
+    armorType: ${sp.armType},${sp.backpack ? "\n    backpack: true," : ""}
+    weapon: "${sp.weapon}",
+    owned: [${sp.owned.join(", ")}],
+    ammo: [${sp.ammo.join(", ")}],
+    rnd: ${sp.rnd},
+    prnd: ${sp.prnd},
+    playDemo: Demo,
+  },
+${noneLines(tics.length - 1, "the demo plays; keys are ignored")}
+${ext}
+]>;\n`;
+}
+function starterScript(st) {
+  return `// Based on: ${st.note}
+// One element per tic, starting directly in the stage. Edit any line, then Run.
+${KEY_HEADER}
+type Inputs = Run<[
+  ...none<1>,
+  ${st.warp},
+${st.lines.join("\n")}
+]>;\n`;
+}
 function presetText(name) {
+  if (STAGE_STARTERS[name]) return starterScript(STAGE_STARTERS[name]);
+  if (STAGE_TAS_SPLITS[name]) return stageTasScript(STAGE_TAS_SPLITS[name]);
   if (name === "clear") return scriptFromSteps(legacySteps(window.PRESETS.clear, 5), "E1M1 clear");
   if (name === "kill") return scriptFromSteps(legacySteps(window.PRESETS.kill), "E1M1 kill run");
   if (name === "tas") return tasScript(window.PRESETS.tas.map((e) => (Array.isArray(e) ? { keys: e } : { keys: e.keys ?? [], poke: e.poke })), "almostmatt1's E1M1 0:07.69 UV-Speed TAS");
