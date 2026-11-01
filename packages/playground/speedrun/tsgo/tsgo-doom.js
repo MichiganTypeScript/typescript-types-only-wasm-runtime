@@ -1,4 +1,4 @@
-// tsgo-doom: typescript-go from teamchong/TypeScript (perf/checker-memory-and-wasm-speedups),
+// tsgo-doom: typescript-go with checker memory and Wasm speedups,
 // built with TinyGo for wasm32-wasip1. It speaks tsrs's ABI (tsrs_input / tsrs_run / tsrs_output and
 // the tsrs_host.fs import), so the file system and request encoding come from tsrs's core.js.
 //
@@ -23,8 +23,8 @@ class WasiExit extends Error {
 
 let loading;
 
-/** Fetches and compiles tsgo-teamchong.wasm.gz (next to this file by default). A failed load is not cached. */
-export function loadModule(url = new URL("./tsgo-teamchong.wasm.gz", import.meta.url)) {
+/** Fetches and compiles tsgo-doom.wasm.gz (next to this file by default). A failed load is not cached. */
+export function loadModule(url = new URL("./tsgo-doom.wasm.gz", import.meta.url)) {
   loading ??= (async () => {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`tsgo-doom: fetching ${url} failed with ${response.status}`);
@@ -171,7 +171,7 @@ export async function tsc(args, options = {}) {
   const cwd = options.cwd ?? "/";
   cur = { host, out: [], err: [], staged: new Uint8Array(0) };
   // Stream `--pretty false` diagnostics through fd_write during execute.CommandLine:
-  // tsgo-teamchong's JSON output buffer is 8 MiB below the heap watermark, so once
+  // tsgo-doom's JSON output buffer is 8 MiB below the heap watermark, so once
   // state.d.ts exceeds ~8 MiB (frame 800+), json.Marshal allocates above the watermark
   // and ResetWasmHeapToWatermark() zeros it before tsrs_run() returns.
   const runArgs = json ? ["--pretty", "false", ...args] : [...args];

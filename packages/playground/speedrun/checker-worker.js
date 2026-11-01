@@ -4,7 +4,7 @@
 // executes doom.wasm: each frame is read out of the memory the checker's types
 // evaluated to.
 //
-// in:  { runId, keyScript, checker: "teamchong" | "ts7" | "tsrs", meta }   a new run: one held-key list per frame
+// in:  { runId, keyScript, checker: "tsgo-doom" | "ts7" | "tsrs", meta }   a new run: one held-key list per frame
 //      { ..., continue: true }    the same, but keep the frames of the saved run up to
 //                                 where its key script stops matching this one
 //      { resume: true }           continue the run saved in OPFS
@@ -13,13 +13,14 @@
 //      { kind: "frame", index, rgba, chunks, ms }  frame `index` finished
 //      { kind: "kept", frames }                    frames 0 to frames-1 are the saved run's
 //      { kind: "log", text } | { kind: "end", result } | { kind: "error", text }
-import { start, moduleShape, rgbaFrom } from "./run.browser.js?v=2";
+import { start, moduleShape, rgbaFrom } from "./run.browser.js?v=3";
 import * as tsrs from "./tsrs/browser.js";
 import * as tsgo from "./tsgo/tsgo.js";
-import * as teamchong from "./tsgo/teamchong.js?v=2";
+import * as tsgoDoom from "./tsgo/tsgo-doom.js?v=3";
 
 const CHECKERS = {
-  teamchong: { label: "tsgo-doom", load: () => teamchong.loadModule(), tsc: (args, o) => teamchong.tsc(args, o) },
+  "tsgo-doom": { label: "tsgo-doom", load: () => tsgoDoom.loadModule(), tsc: (args, o) => tsgoDoom.tsc(args, o) },
+  teamchong: { label: "tsgo-doom", load: () => tsgoDoom.loadModule(), tsc: (args, o) => tsgoDoom.tsc(args, o) },
   ts7: { label: "tsgo", load: () => tsgo.loadModule(), tsc: (args, o) => tsgo.tsc(args, o) },
   tsrs: { label: "tsrs", load: () => tsrs.loadModule(new URL("./tsrs/tsrs.wasm", import.meta.url)), tsc: (args, o) => tsrs.tsc(args, { ...o, stackSizeMb: 1024 }) },
 };
@@ -285,7 +286,7 @@ self.onmessage = async ({ data }) => {
       await writeFile("end.json", JSON.stringify({ ms: Math.round(baseMs) }));
       return post({ kind: "end", result: { chunks: 0, ms: baseMs } });
     }
-    const checker = CHECKERS[checkerName] ?? CHECKERS.teamchong;
+    const checker = CHECKERS[checkerName] ?? CHECKERS["tsgo-doom"];
     const a = await load();
     post({ kind: "status", text: `fetching ${checker.label}` });
     await checker.load();
@@ -298,7 +299,7 @@ self.onmessage = async ({ data }) => {
       libFiles: a.libFiles,
       keyScript,
       resume: resume ?? a.resume,
-      fuel: 12288,
+      fuel: 16384,
       onCheckpoint: (p, path) => {
         if (path.endsWith(".final")) return;
         const ms = baseMs + (performance.now() - t0);

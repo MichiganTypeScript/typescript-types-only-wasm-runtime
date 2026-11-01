@@ -473,7 +473,7 @@
       </label>
       <label class="meta" title="Which TypeScript type checker, compiled to WebAssembly, runs your script">Checker
         <select id="checkerSel">
-          <option value="teamchong" selected>tsgo-doom (TS7.1 with checker speedups, TinyGo build)</option>
+          <option value="tsgo-doom" selected>tsgo-doom (TS7.1 with checker speedups, TinyGo build)</option>
           <option value="ts7">tsgo (TS7.1, Go build)</option>
           <option value="tsrs">tsrs</option>
         </select>
@@ -1223,7 +1223,7 @@ function execute(script, saved) {
   stageText = saved ? "resuming from checkpoint" : "loading the checker";
   runT0 = performance.now() - (saved?.elapsedMs ?? 0);
   scrub.max = String(Math.max(0, frames.length - 1));
-  worker = new Worker("checker-worker.js?v=2", { type: "module" });
+  worker = new Worker("checker-worker.js?v=3", { type: "module" });
   worker.onmessage = ({ data: m }) => {
     if (m.kind === "status") {
       if (m.text.startsWith("tsc ")) {
@@ -2168,7 +2168,7 @@ function showRestored(run) {
   fpsSel.value = String(run.x || 1);
   checkerSel.value = run.checker;
   // Runs saved by a checker the page no longer offers continue on tsgo-doom (the worker falls back too).
-  if (!checkerSel.value) checkerSel.value = "teamchong";
+  if (!checkerSel.value) checkerSel.value = "tsgo-doom";
   try { localStorage.setItem("doom-checker", checkerSel.value); } catch {}
   showScript(run.t);
   if (run.ended) {

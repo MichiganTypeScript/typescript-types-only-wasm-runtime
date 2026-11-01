@@ -761,6 +761,42 @@ export const run = async (
     // declaration exists for the host, which parses it out of the .cfg.ts
     // itself (see `initialMemory` and render-frame). Handing it to the checker
     // costs a parse and a bind of 39MB on every compiler instance for nothing.
+    const oldSlice = `type $Slice<A extends string> =
+  A extends \`000000\${infer B extends string}00\`
+    ? B
+    : $SliceWide<A>`;
+    const newSlice = `type $Slice<A extends string> =
+  A extends \`000000\${infer B extends string}00\` ? B
+  : A extends \`000000\${infer B extends string}01\` ? B
+  : A extends \`000000\${infer B extends string}10\` ? B
+  : A extends \`000000\${infer B extends string}11\` ? B
+  : $SliceWide<A>`;
+    const oldSplit = `type $Split<A extends string> =
+  A extends \`000000\${infer b0}\${infer b1}\${infer b2}\${infer b3}\${infer b4}\${infer b5}\${infer b6}\${infer b7}\${infer b8}\${infer b9}\${infer b10}\${infer b11}\${infer b12}\${infer b13}\${infer b14}\${infer b15}\${infer b16}\${infer b17}\${infer b18}\${infer b19}\${infer b20}\${infer b21}\${infer b22}\${infer b23}00\`
+    ? [\`\${b0}\${b1}\${b2}\${b3}\${b4}\${b5}\${b6}\${b7}\${b8}\${b9}\${b10}\${b11}\${b12}\${b13}\${b14}\${b15}\${b16}\${b17}\`, [\`\${b0}\${b1}\${b2}\${b3}\${b4}\${b5}\`, \`\${b6}\${b7}\${b8}\${b9}\${b10}\${b11}\`, \`\${b12}\${b13}\${b14}\${b15}\${b16}\${b17}\`], \`\${b18}\${b19}\${b20}\${b21}\${b22}\${b23}\`]
+    : $SplitWide<A>`;
+    const newSplit = `type $Split<A extends string> =
+  $Slice<A> extends \`\${infer b0}\${infer b1}\${infer b2}\${infer b3}\${infer b4}\${infer b5}\${infer b6}\${infer b7}\${infer b8}\${infer b9}\${infer b10}\${infer b11}\${infer b12}\${infer b13}\${infer b14}\${infer b15}\${infer b16}\${infer b17}\${infer d}\`
+    ? [\`\${b0}\${b1}\${b2}\${b3}\${b4}\${b5}\${b6}\${b7}\${b8}\${b9}\${b10}\${b11}\${b12}\${b13}\${b14}\${b15}\${b16}\${b17}\`, [\`\${b0}\${b1}\${b2}\${b3}\${b4}\${b5}\`, \`\${b6}\${b7}\${b8}\${b9}\${b10}\${b11}\`, \`\${b12}\${b13}\${b14}\${b15}\${b16}\${b17}\`], d]
+    : never`;
+    const oldWrite = `type $Write<M extends $Node, A extends WasmValue, V extends WasmValue> =
+  $Split<A> extends [infer K extends string, infer B extends unknown[], infer D extends string]
+    ? M extends [infer T, infer MK, infer MB extends unknown[], infer S extends unknown[][], infer Base]
+      ? K extends MK
+        ? [T, MK, MB, $BSet<S, D, [V]>, Base]
+        : [(MK extends 'eeeeeeeeeeeeeeeeee' ? T : $MergeAt<T, MB, S>), K, B, $BSet<$Empty, D, [V]>, Base]
+      : never
+    : never`;
+    const newWrite = `type $Write<M extends $Node, A extends WasmValue, V extends WasmValue> =
+  M extends [infer T, infer MK extends string, infer MB extends unknown[], infer S extends unknown[][], infer Base]
+    ? $Slice<A> extends infer P extends string
+      ? P extends \`\${MK}\${infer D}\`
+        ? [T, MK, MB, $BSet<S, D, [V]>, Base]
+        : $Split<A> extends [infer K extends string, infer B extends unknown[], infer D extends string]
+          ? [(MK extends 'eeeeeeeeeeeeeeeeee' ? T : $MergeAt<T, MB, S>), K, B, $BSet<$Empty, D, [V]>, Base]
+          : never
+      : never
+    : never`;
     const oldBlit = `type $Blit8<M extends $Node, D extends WasmValue, S extends WasmValue, C extends WasmValue, DS extends WasmValue, SS extends WasmValue> =
   C extends '00000000000000000000000000000000'
   ? M
@@ -795,11 +831,135 @@ export const run = async (
       ? $Blit8<M2, Wasm.I32Add<D, Wasm.I32Mul<H, DS>>, Wasm.I32Add<S, Wasm.I32Mul<H, SS>>, Wasm.I32Sub<C, H>, DS, SS>
       : never
     : never`;
+    const oldFill = `type $Fill8<M extends $Node, D extends WasmValue, V extends WasmValue, C extends WasmValue> =
+  C extends '00000000000000000000000000000000'
+  ? M
+  : C extends \`00000000000000000000000\${string}\`
+  ? ($Store8<M, D, V> extends infer M2 extends $Node
+    ? $Fill8<M2, Wasm.I32Add<D, '00000000000000000000000000000001'>, V, Wasm.I32Sub<C, '00000000000000000000000000000001'>>
+    : never)
+  : $BlitH<C> extends infer H extends WasmValue
+    ? $Fill8<M, D, V, H> extends infer M2 extends $Node
+      ? $Fill8<M2, Wasm.I32Add<D, H>, V, Wasm.I32Sub<C, H>>
+      : never
+    : never`;
+    const newFill = `type $Low8<V extends string> = V extends \`000000000000000000000000\${infer B}\` ? B : V extends \`\${infer _0}\${infer _1}\${infer _2}\${infer _3}\${infer _4}\${infer _5}\${infer _6}\${infer _7}\${infer _8}\${infer _9}\${infer _10}\${infer _11}\${infer _12}\${infer _13}\${infer _14}\${infer _15}\${infer _16}\${infer _17}\${infer _18}\${infer _19}\${infer _20}\${infer _21}\${infer _22}\${infer _23}\${infer B}\` ? B : never
+type $Fill8<M extends $Node, D extends WasmValue, V extends WasmValue, C extends WasmValue> =
+  C extends '00000000000000000000000000000000'
+  ? M
+  : C extends \`00000000000000000000000\${string}\`
+  ? (C extends \`\${string}00\`
+    ? (D extends \`\${string}00\`
+      ? ($Low8<V> extends infer B extends string
+        ? ($Write<M, D, \`\${B}\${B}\${B}\${B}\`> extends infer M2 extends $Node
+          ? $Fill8<M2, Wasm.I32Add<D, '00000000000000000000000000000100'>, V, Wasm.I32Sub<C, '00000000000000000000000000000100'>>
+          : never)
+        : never)
+      : ($Store8<M, D, V> extends infer M2 extends $Node ? $Fill8<M2, Wasm.I32Add<D, '00000000000000000000000000000001'>, V, Wasm.I32Sub<C, '00000000000000000000000000000001'>> : never))
+    : ($Store8<M, D, V> extends infer M2 extends $Node ? $Fill8<M2, Wasm.I32Add<D, '00000000000000000000000000000001'>, V, Wasm.I32Sub<C, '00000000000000000000000000000001'>> : never))
+  : $BlitH<C> extends infer H extends WasmValue
+    ? $Fill8<M, D, V, H> extends infer M2 extends $Node
+      ? $Fill8<M2, Wasm.I32Add<D, H>, V, Wasm.I32Sub<C, H>>
+      : never
+    : never`;
+    const oldCol = `type $Tex_16_0_7<M extends $Node, D extends WasmValue, KD extends WasmValue, CM extends WasmValue, SRC extends WasmValue, A extends WasmValue, DA extends WasmValue, B extends WasmValue, DB extends WasmValue, C extends WasmValue, D2 extends WasmValue, KD2 extends WasmValue> =
+  C extends '00000000000000000000000000000000'
+  ? M
+  : C extends \`00000000000000000000000\${string}\`
+  ? ($Load8U<M, Wasm.I32Add<CM, $Load8U<M, Wasm.I32Add<SRC, $TexIdx_16_0_7<A, B>>>>> extends infer V extends WasmValue
+    ? $Store8<M, D, V> extends infer M2 extends $Node
+      ? $Tex_16_0_7<M2, Wasm.I32Add<D, KD>, KD, CM, SRC, Wasm.I32Add<A, DA>, DA, Wasm.I32Add<B, DB>, DB, Wasm.I32Sub<C, '00000000000000000000000000000001'>, D2, KD2>
+      : never
+    : never)
+  : $BlitH<C> extends infer H extends WasmValue
+    ? $Tex_16_0_7<M, D, KD, CM, SRC, A, DA, B, DB, H, D2, KD2> extends infer M2 extends $Node
+      ? $Tex_16_0_7<M2, Wasm.I32Add<D, Wasm.I32Mul<H, KD>>, KD, CM, SRC, Wasm.I32Add<A, Wasm.I32Mul<H, DA>>, DA, Wasm.I32Add<B, Wasm.I32Mul<H, DB>>, DB, Wasm.I32Sub<C, H>, D2, KD2>
+      : never
+    : never`;
+    const newCol = `type $GetByte8<W extends string, O extends string> =
+  W extends \`\${infer w0}\${infer w1}\${infer w2}\${infer w3}\${infer w4}\${infer w5}\${infer w6}\${infer w7}\${infer w8}\${infer w9}\${infer w10}\${infer w11}\${infer w12}\${infer w13}\${infer w14}\${infer w15}\${infer w16}\${infer w17}\${infer w18}\${infer w19}\${infer w20}\${infer w21}\${infer w22}\${infer w23}\${infer w24}\${infer w25}\${infer w26}\${infer w27}\${infer w28}\${infer w29}\${infer w30}\${infer w31}\`
+    ? O extends '00' ? \`\${w24}\${w25}\${w26}\${w27}\${w28}\${w29}\${w30}\${w31}\`
+      : O extends '01' ? \`\${w16}\${w17}\${w18}\${w19}\${w20}\${w21}\${w22}\${w23}\`
+      : O extends '10' ? \`\${w8}\${w9}\${w10}\${w11}\${w12}\${w13}\${w14}\${w15}\`
+      : \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\`
+    : never
+type $SetByte8<W extends string, O extends string, B extends string> =
+  W extends \`\${infer w0}\${infer w1}\${infer w2}\${infer w3}\${infer w4}\${infer w5}\${infer w6}\${infer w7}\${infer w8}\${infer w9}\${infer w10}\${infer w11}\${infer w12}\${infer w13}\${infer w14}\${infer w15}\${infer w16}\${infer w17}\${infer w18}\${infer w19}\${infer w20}\${infer w21}\${infer w22}\${infer w23}\${infer w24}\${infer w25}\${infer w26}\${infer w27}\${infer w28}\${infer w29}\${infer w30}\${infer w31}\`
+    ? O extends '00' ? \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\${w8}\${w9}\${w10}\${w11}\${w12}\${w13}\${w14}\${w15}\${w16}\${w17}\${w18}\${w19}\${w20}\${w21}\${w22}\${w23}\${B}\`
+      : O extends '01' ? \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\${w8}\${w9}\${w10}\${w11}\${w12}\${w13}\${w14}\${w15}\${B}\${w24}\${w25}\${w26}\${w27}\${w28}\${w29}\${w30}\${w31}\`
+      : O extends '10' ? \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\${B}\${w16}\${w17}\${w18}\${w19}\${w20}\${w21}\${w22}\${w23}\${w24}\${w25}\${w26}\${w27}\${w28}\${w29}\${w30}\${w31}\`
+      : \`\${B}\${w8}\${w9}\${w10}\${w11}\${w12}\${w13}\${w14}\${w15}\${w16}\${w17}\${w18}\${w19}\${w20}\${w21}\${w22}\${w23}\${w24}\${w25}\${w26}\${w27}\${w28}\${w29}\${w30}\${w31}\`
+    : never
+type $ColLoad8U<T, Base, A extends WasmValue> = $GetByte<$Under<T, Base, $Slice<A>>, $Off<A>>
+type $ColPix8<R, Base, CM extends WasmValue, SRC extends WasmValue, IDX extends WasmValue> =
+  Wasm.I32Add<CM, $ColLoad8U<R, Base, Wasm.I32Add<SRC, IDX>>> extends infer CMA extends WasmValue
+    ? $GetByte8<$Under<R, Base, $Slice<CMA>>, $Off<CMA>>
+    : never
+type $ColLoop<T, R, Base, O extends string, D extends WasmValue, KD extends WasmValue, CM extends WasmValue, SRC extends WasmValue, A extends WasmValue, DA extends WasmValue, C extends WasmValue> =
+  C extends '00000000000000000000000000000000'
+  ? T
+  : C extends \`00000000000000000000000\${string}\`
+  ? ($ColPix8<R, Base, CM, SRC, $TexIdx_16_0_7<A, '00000000000000000000000000000000'>> extends infer B8 extends string
+    ? (D extends \`000000\${infer P extends string}00\` ? P : $Slice<D>) extends infer P extends string
+      ? $SetByte8<$Under<T, Base, P>, O, B8> extends infer W extends string
+        ? $Put<T, P, W> extends infer T2
+          ? $ColLoop<T2, R, Base, O, Wasm.I32Add<D, KD>, KD, CM, SRC, Wasm.I32Add<A, DA>, DA, Wasm.I32Sub<C, '00000000000000000000000000000001'>>
+          : never
+        : never
+      : never
+    : never)
+  : $BlitH<C> extends infer H extends WasmValue
+    ? $ColLoop<T, R, Base, O, D, KD, CM, SRC, A, DA, H> extends infer T2
+      ? $ColLoop<T2, R, Base, O, Wasm.I32Add<D, Wasm.I32Mul<H, KD>>, KD, CM, SRC, Wasm.I32Add<A, Wasm.I32Mul<H, DA>>, DA, Wasm.I32Sub<C, H>>
+      : never
+    : never
+type $Tex_16_0_7<M extends $Node, D extends WasmValue, KD extends WasmValue, CM extends WasmValue, SRC extends WasmValue, A extends WasmValue, DA extends WasmValue, _B extends WasmValue, _DB extends WasmValue, C extends WasmValue, _D2 extends WasmValue, _KD2 extends WasmValue> =
+  M extends [infer T, infer MK, infer MB extends unknown[], infer S extends unknown[][], infer Base]
+    ? (MK extends 'eeeeeeeeeeeeeeeeee' ? T : $MergeAt<T, MB, S>) extends infer T0
+      ? [$ColLoop<T0, T0, Base, $Off<D>, $AlignAddr<D>, KD, CM, SRC, A, DA, C>, 'eeeeeeeeeeeeeeeeee', [], $Empty, Base]
+      : never
+    : never`;
+    const oldSpan = `type $Tex_10_6_6_16_0_6<M extends $Node, D extends WasmValue, KD extends WasmValue, CM extends WasmValue, SRC extends WasmValue, A extends WasmValue, DA extends WasmValue, B extends WasmValue, DB extends WasmValue, C extends WasmValue, D2 extends WasmValue, KD2 extends WasmValue> =
+  C extends '00000000000000000000000000000000'
+  ? M
+  : C extends \`00000000000000000000000\${string}\`
+  ? ($Load8U<M, Wasm.I32Add<CM, $Load8U<M, Wasm.I32Add<SRC, $TexIdx_10_6_6_16_0_6<A, B>>>>> extends infer V extends WasmValue
+    ? $Store8<M, D, V> extends infer M2 extends $Node
+      ? $Tex_10_6_6_16_0_6<M2, Wasm.I32Add<D, KD>, KD, CM, SRC, Wasm.I32Add<A, DA>, DA, Wasm.I32Add<B, DB>, DB, Wasm.I32Sub<C, '00000000000000000000000000000001'>, D2, KD2>
+      : never
+    : never)
+  : $BlitH<C> extends infer H extends WasmValue
+    ? $Tex_10_6_6_16_0_6<M, D, KD, CM, SRC, A, DA, B, DB, H, D2, KD2> extends infer M2 extends $Node
+      ? $Tex_10_6_6_16_0_6<M2, Wasm.I32Add<D, Wasm.I32Mul<H, KD>>, KD, CM, SRC, Wasm.I32Add<A, Wasm.I32Mul<H, DA>>, DA, Wasm.I32Add<B, Wasm.I32Mul<H, DB>>, DB, Wasm.I32Sub<C, H>, D2, KD2>
+      : never
+    : never`;
+    const newSpan = `type $SpanPix<R extends $Node, CM extends WasmValue, SRC extends WasmValue, IDX extends WasmValue> =
+  $Load8U<R, Wasm.I32Add<CM, $Load8U<R, Wasm.I32Add<SRC, IDX>>>>
+type $SpanLoop<M extends $Node, R extends $Node, D extends WasmValue, KD extends WasmValue, CM extends WasmValue, SRC extends WasmValue, A extends WasmValue, DA extends WasmValue, B extends WasmValue, DB extends WasmValue, C extends WasmValue> =
+  C extends '00000000000000000000000000000000'
+  ? M
+  : C extends \`00000000000000000000000\${string}\`
+  ? ($Store8<M, D, $SpanPix<R, CM, SRC, $TexIdx_10_6_6_16_0_6<A, B>>> extends infer M2 extends $Node
+    ? $SpanLoop<M2, R, Wasm.I32Add<D, KD>, KD, CM, SRC, Wasm.I32Add<A, DA>, DA, Wasm.I32Add<B, DB>, DB, Wasm.I32Sub<C, '00000000000000000000000000000001'>>
+    : never)
+  : $BlitH<C> extends infer H extends WasmValue
+    ? $SpanLoop<M, R, D, KD, CM, SRC, A, DA, B, DB, H> extends infer M2 extends $Node
+      ? $SpanLoop<M2, R, Wasm.I32Add<D, Wasm.I32Mul<H, KD>>, KD, CM, SRC, Wasm.I32Add<A, Wasm.I32Mul<H, DA>>, DA, Wasm.I32Add<B, Wasm.I32Mul<H, DB>>, DB, Wasm.I32Sub<C, H>>
+      : never
+    : never
+type $Tex_10_6_6_16_0_6<M extends $Node, D extends WasmValue, KD extends WasmValue, CM extends WasmValue, SRC extends WasmValue, A extends WasmValue, DA extends WasmValue, B extends WasmValue, DB extends WasmValue, C extends WasmValue, _D2 extends WasmValue, _KD2 extends WasmValue> =
+  $SpanLoop<M, M, D, KD, CM, SRC, A, DA, B, DB, C>`;
     const withoutInitial = (process.env.KEEP_INITIAL ? moduleText : moduleText.replace(
       /^type \$InitialMemory = [^\n]*\n/m,
       "type $InitialMemory = $Absent\n",
     ))
+      .replace(oldSlice, newSlice)
+      .replace(oldSplit, newSplit)
+      .replace(oldWrite, newWrite)
       .replace(oldBlit, newBlit)
+      .replace(oldFill, newFill)
+      .replace(oldCol, newCol)
+      .replace(oldSpan, newSpan)
       .replace("${c28}${c29}${c30}` : never", "${c28}00` : never");
     // The string module has one import (`from 'ts-type-math'`, bare names); the
     // Word4 module has two (`Convert` from the package, and the byte-tuple
