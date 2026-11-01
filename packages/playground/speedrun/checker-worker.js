@@ -13,10 +13,10 @@
 //      { kind: "frame", index, rgba, chunks, ms }  frame `index` finished
 //      { kind: "kept", frames }                    frames 0 to frames-1 are the saved run's
 //      { kind: "log", text } | { kind: "end", result } | { kind: "error", text }
-import { start, moduleShape, rgbaFrom } from "./run.browser.js?v=3";
+import { start, moduleShape, rgbaFrom } from "./run.browser.js?v=4";
 import * as tsrs from "./tsrs/browser.js";
 import * as tsgo from "./tsgo/tsgo.js";
-import * as tsgoDoom from "./tsgo/tsgo-doom.js?v=3";
+import * as tsgoDoom from "./tsgo/tsgo-doom.js?v=4";
 
 const CHECKERS = {
   "tsgo-doom": { label: "tsgo-doom", load: () => tsgoDoom.loadModule(), tsc: (args, o) => tsgoDoom.tsc(args, o) },

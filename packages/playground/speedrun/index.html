@@ -1223,7 +1223,7 @@ function execute(script, saved) {
   stageText = saved ? "resuming from checkpoint" : "loading the checker";
   runT0 = performance.now() - (saved?.elapsedMs ?? 0);
   scrub.max = String(Math.max(0, frames.length - 1));
-  worker = new Worker("checker-worker.js?v=3", { type: "module" });
+  worker = new Worker("checker-worker.js?v=4", { type: "module" });
   worker.onmessage = ({ data: m }) => {
     if (m.kind === "status") {
       if (m.text.startsWith("tsc ")) {

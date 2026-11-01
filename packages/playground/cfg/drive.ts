@@ -876,25 +876,57 @@ type $Fill8<M extends $Node, D extends WasmValue, V extends WasmValue, C extends
       ? $Tex_16_0_7<M2, Wasm.I32Add<D, Wasm.I32Mul<H, KD>>, KD, CM, SRC, Wasm.I32Add<A, Wasm.I32Mul<H, DA>>, DA, Wasm.I32Add<B, Wasm.I32Mul<H, DB>>, DB, Wasm.I32Sub<C, H>, D2, KD2>
       : never
     : never`;
+    const oldIdx16 = `type $TexIdx_16_0_7<A extends WasmValue, B extends WasmValue> =
+  A extends \`\${infer a0}\${infer a1}\${infer a2}\${infer a3}\${infer a4}\${infer a5}\${infer a6}\${infer a7}\${infer a8}\${infer a9}\${infer a10}\${infer a11}\${infer a12}\${infer a13}\${infer a14}\${infer a15}\${infer a16}\${infer a17}\${infer a18}\${infer a19}\${infer a20}\${infer a21}\${infer a22}\${infer a23}\${infer a24}\${infer a25}\${infer a26}\${infer a27}\${infer a28}\${infer a29}\${infer a30}\${infer a31}\` ? \`0000000000000000000000000\${a9}\${a10}\${a11}\${a12}\${a13}\${a14}\${a15}\` : never`;
+    const newIdx16 = `type $TexIdx_16_0_7<A extends WasmValue, _B extends WasmValue> =
+  A extends \`\${infer _a0}\${infer _a1}\${infer _a2}\${infer _a3}\${infer _a4}\${infer _a5}\${infer _a6}\${infer _a7}\${infer _a8}\${infer a9}\${infer a10}\${infer a11}\${infer a12}\${infer a13}\${infer a14}\${infer a15}\${string}\` ? \`0000000000000000000000000\${a9}\${a10}\${a11}\${a12}\${a13}\${a14}\${a15}\` : never`;
+    const oldIdxSpan = `type $TexIdx_10_6_6_16_0_6<A extends WasmValue, B extends WasmValue> =
+  A extends \`\${infer a0}\${infer a1}\${infer a2}\${infer a3}\${infer a4}\${infer a5}\${infer a6}\${infer a7}\${infer a8}\${infer a9}\${infer a10}\${infer a11}\${infer a12}\${infer a13}\${infer a14}\${infer a15}\${infer a16}\${infer a17}\${infer a18}\${infer a19}\${infer a20}\${infer a21}\${infer a22}\${infer a23}\${infer a24}\${infer a25}\${infer a26}\${infer a27}\${infer a28}\${infer a29}\${infer a30}\${infer a31}\` ? B extends \`\${infer b0}\${infer b1}\${infer b2}\${infer b3}\${infer b4}\${infer b5}\${infer b6}\${infer b7}\${infer b8}\${infer b9}\${infer b10}\${infer b11}\${infer b12}\${infer b13}\${infer b14}\${infer b15}\${infer b16}\${infer b17}\${infer b18}\${infer b19}\${infer b20}\${infer b21}\${infer b22}\${infer b23}\${infer b24}\${infer b25}\${infer b26}\${infer b27}\${infer b28}\${infer b29}\${infer b30}\${infer b31}\` ? \`00000000000000000000\${a10}\${a11}\${a12}\${a13}\${a14}\${a15}\${b10}\${b11}\${b12}\${b13}\${b14}\${b15}\` : never : never`;
+    const newIdxSpan = `type $TexIdx_10_6_6_16_0_6<A extends WasmValue, B extends WasmValue> =
+  A extends \`\${infer _a0}\${infer _a1}\${infer _a2}\${infer _a3}\${infer _a4}\${infer _a5}\${infer _a6}\${infer _a7}\${infer _a8}\${infer _a9}\${infer a10}\${infer a11}\${infer a12}\${infer a13}\${infer a14}\${infer a15}\${string}\` ? B extends \`\${infer _b0}\${infer _b1}\${infer _b2}\${infer _b3}\${infer _b4}\${infer _b5}\${infer _b6}\${infer _b7}\${infer _b8}\${infer _b9}\${infer b10}\${infer b11}\${infer b12}\${infer b13}\${infer b14}\${infer b15}\${string}\` ? \`00000000000000000000\${a10}\${a11}\${a12}\${a13}\${a14}\${a15}\${b10}\${b11}\${b12}\${b13}\${b14}\${b15}\` : never : never`;
     const newCol = `type $GetByte8<W extends string, O extends string> =
-  W extends \`\${infer w0}\${infer w1}\${infer w2}\${infer w3}\${infer w4}\${infer w5}\${infer w6}\${infer w7}\${infer w8}\${infer w9}\${infer w10}\${infer w11}\${infer w12}\${infer w13}\${infer w14}\${infer w15}\${infer w16}\${infer w17}\${infer w18}\${infer w19}\${infer w20}\${infer w21}\${infer w22}\${infer w23}\${infer w24}\${infer w25}\${infer w26}\${infer w27}\${infer w28}\${infer w29}\${infer w30}\${infer w31}\`
-    ? O extends '00' ? \`\${w24}\${w25}\${w26}\${w27}\${w28}\${w29}\${w30}\${w31}\`
-      : O extends '01' ? \`\${w16}\${w17}\${w18}\${w19}\${w20}\${w21}\${w22}\${w23}\`
-      : O extends '10' ? \`\${w8}\${w9}\${w10}\${w11}\${w12}\${w13}\${w14}\${w15}\`
-      : \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\`
-    : never
+  O extends '11'
+    ? (W extends \`\${infer w0}\${infer w1}\${infer w2}\${infer w3}\${infer w4}\${infer w5}\${infer w6}\${infer w7}\${string}\` ? \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\` : never)
+    : O extends '10'
+      ? (W extends \`\${infer _0}\${infer _1}\${infer _2}\${infer _3}\${infer _4}\${infer _5}\${infer _6}\${infer _7}\${infer w8}\${infer w9}\${infer w10}\${infer w11}\${infer w12}\${infer w13}\${infer w14}\${infer w15}\${string}\` ? \`\${w8}\${w9}\${w10}\${w11}\${w12}\${w13}\${w14}\${w15}\` : never)
+      : O extends '01'
+        ? (W extends \`\${infer _0}\${infer _1}\${infer _2}\${infer _3}\${infer _4}\${infer _5}\${infer _6}\${infer _7}\${infer _8}\${infer _9}\${infer _10}\${infer _11}\${infer _12}\${infer _13}\${infer _14}\${infer _15}\${infer w16}\${infer w17}\${infer w18}\${infer w19}\${infer w20}\${infer w21}\${infer w22}\${infer w23}\${string}\` ? \`\${w16}\${w17}\${w18}\${w19}\${w20}\${w21}\${w22}\${w23}\` : never)
+        : (W extends \`\${infer _0}\${infer _1}\${infer _2}\${infer _3}\${infer _4}\${infer _5}\${infer _6}\${infer _7}\${infer _8}\${infer _9}\${infer _10}\${infer _11}\${infer _12}\${infer _13}\${infer _14}\${infer _15}\${infer _16}\${infer _17}\${infer _18}\${infer _19}\${infer _20}\${infer _21}\${infer _22}\${infer _23}\${infer B}\` ? B : never)
 type $SetByte8<W extends string, O extends string, B extends string> =
-  W extends \`\${infer w0}\${infer w1}\${infer w2}\${infer w3}\${infer w4}\${infer w5}\${infer w6}\${infer w7}\${infer w8}\${infer w9}\${infer w10}\${infer w11}\${infer w12}\${infer w13}\${infer w14}\${infer w15}\${infer w16}\${infer w17}\${infer w18}\${infer w19}\${infer w20}\${infer w21}\${infer w22}\${infer w23}\${infer w24}\${infer w25}\${infer w26}\${infer w27}\${infer w28}\${infer w29}\${infer w30}\${infer w31}\`
-    ? O extends '00' ? \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\${w8}\${w9}\${w10}\${w11}\${w12}\${w13}\${w14}\${w15}\${w16}\${w17}\${w18}\${w19}\${w20}\${w21}\${w22}\${w23}\${B}\`
-      : O extends '01' ? \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\${w8}\${w9}\${w10}\${w11}\${w12}\${w13}\${w14}\${w15}\${B}\${w24}\${w25}\${w26}\${w27}\${w28}\${w29}\${w30}\${w31}\`
-      : O extends '10' ? \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\${B}\${w16}\${w17}\${w18}\${w19}\${w20}\${w21}\${w22}\${w23}\${w24}\${w25}\${w26}\${w27}\${w28}\${w29}\${w30}\${w31}\`
-      : \`\${B}\${w8}\${w9}\${w10}\${w11}\${w12}\${w13}\${w14}\${w15}\${w16}\${w17}\${w18}\${w19}\${w20}\${w21}\${w22}\${w23}\${w24}\${w25}\${w26}\${w27}\${w28}\${w29}\${w30}\${w31}\`
+  O extends '11'
+    ? (W extends \`\${infer _0}\${infer _1}\${infer _2}\${infer _3}\${infer _4}\${infer _5}\${infer _6}\${infer _7}\${infer Rest}\` ? \`\${B}\${Rest}\` : never)
+    : O extends '10'
+      ? (W extends \`\${infer w0}\${infer w1}\${infer w2}\${infer w3}\${infer w4}\${infer w5}\${infer w6}\${infer w7}\${infer _8}\${infer _9}\${infer _10}\${infer _11}\${infer _12}\${infer _13}\${infer _14}\${infer _15}\${infer Rest}\` ? \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\${B}\${Rest}\` : never)
+      : O extends '01'
+        ? (W extends \`\${infer w0}\${infer w1}\${infer w2}\${infer w3}\${infer w4}\${infer w5}\${infer w6}\${infer w7}\${infer w8}\${infer w9}\${infer w10}\${infer w11}\${infer w12}\${infer w13}\${infer w14}\${infer w15}\${infer _16}\${infer _17}\${infer _18}\${infer _19}\${infer _20}\${infer _21}\${infer _22}\${infer _23}\${infer Rest}\` ? \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\${w8}\${w9}\${w10}\${w11}\${w12}\${w13}\${w14}\${w15}\${B}\${Rest}\` : never)
+        : (W extends \`\${infer w0}\${infer w1}\${infer w2}\${infer w3}\${infer w4}\${infer w5}\${infer w6}\${infer w7}\${infer w8}\${infer w9}\${infer w10}\${infer w11}\${infer w12}\${infer w13}\${infer w14}\${infer w15}\${infer w16}\${infer w17}\${infer w18}\${infer w19}\${infer w20}\${infer w21}\${infer w22}\${infer w23}\${string}\` ? \`\${w0}\${w1}\${w2}\${w3}\${w4}\${w5}\${w6}\${w7}\${w8}\${w9}\${w10}\${w11}\${w12}\${w13}\${w14}\${w15}\${w16}\${w17}\${w18}\${w19}\${w20}\${w21}\${w22}\${w23}\${B}\` : never)
+type $Add5Top20<S extends string> =
+  S extends \`\${infer H}00\` ? \`\${$IncTop18<H>}01\` :
+  S extends \`\${infer H}01\` ? \`\${$IncTop18<H>}10\` :
+  S extends \`\${infer H}10\` ? \`\${$IncTop18<H>}11\` :
+  S extends \`\${infer H}11\` ? \`\${$IncTop18<$IncTop18<H>>}00\` :
+  never
+type $SplitP20<P extends string> =
+  P extends \`\${infer p0}\${infer p1}\${infer p2}\${infer p3}\${infer p4}\${infer p5}\${infer p6}\${infer p7}\${infer p8}\${infer p9}\${infer p10}\${infer p11}\${infer p12}\${infer p13}\${infer p14}\${infer p15}\${infer p16}\${infer p17}\${infer p18}\${infer p19}\${infer L4}\`
+    ? [\`\${p0}\${p1}\${p2}\${p3}\${p4}\${p5}\${p6}\${p7}\${p8}\${p9}\${p10}\${p11}\${p12}\${p13}\${p14}\${p15}\${p16}\${p17}\${p18}\${p19}\`, L4]
     : never
 type $ColLoad8U<T, Base, A extends WasmValue> = $GetByte<$Under<T, Base, $Slice<A>>, $Off<A>>
 type $ColPix8<R, Base, CM extends WasmValue, SRC extends WasmValue, IDX extends WasmValue> =
   Wasm.I32Add<CM, $ColLoad8U<R, Base, Wasm.I32Add<SRC, IDX>>> extends infer CMA extends WasmValue
     ? $GetByte8<$Under<R, Base, $Slice<CMA>>, $Off<CMA>>
     : never
+type $ColLoopFast<T, R, Base, O extends string, P20 extends string, L4 extends string, CM extends WasmValue, SRC extends WasmValue, A extends WasmValue, DA extends WasmValue, C extends WasmValue> =
+  C extends '00000000000000000000000000000000'
+  ? T
+  : ($ColPix8<R, Base, CM, SRC, $TexIdx_16_0_7<A, '00000000000000000000000000000000'>> extends infer B8 extends string
+    ? \`\${P20}\${L4}\` extends infer P extends string
+      ? $SetByte8<$Under<T, Base, P>, O, B8> extends infer W extends string
+        ? $Put<T, P, W> extends infer T2
+          ? $ColLoopFast<T2, R, Base, O, $Add5Top20<P20>, L4, CM, SRC, Wasm.I32Add<A, DA>, DA, $DecTop32<C>>
+          : never
+        : never
+      : never
+    : never)
 type $ColLoop<T, R, Base, O extends string, D extends WasmValue, KD extends WasmValue, CM extends WasmValue, SRC extends WasmValue, A extends WasmValue, DA extends WasmValue, C extends WasmValue> =
   C extends '00000000000000000000000000000000'
   ? T
@@ -903,7 +935,7 @@ type $ColLoop<T, R, Base, O extends string, D extends WasmValue, KD extends Wasm
     ? (D extends \`000000\${infer P extends string}00\` ? P : $Slice<D>) extends infer P extends string
       ? $SetByte8<$Under<T, Base, P>, O, B8> extends infer W extends string
         ? $Put<T, P, W> extends infer T2
-          ? $ColLoop<T2, R, Base, O, Wasm.I32Add<D, KD>, KD, CM, SRC, Wasm.I32Add<A, DA>, DA, Wasm.I32Sub<C, '00000000000000000000000000000001'>>
+          ? $ColLoop<T2, R, Base, O, Wasm.I32Add<D, KD>, KD, CM, SRC, Wasm.I32Add<A, DA>, DA, $DecTop32<C>>
           : never
         : never
       : never
@@ -916,7 +948,13 @@ type $ColLoop<T, R, Base, O extends string, D extends WasmValue, KD extends Wasm
 type $Tex_16_0_7<M extends $Node, D extends WasmValue, KD extends WasmValue, CM extends WasmValue, SRC extends WasmValue, A extends WasmValue, DA extends WasmValue, _B extends WasmValue, _DB extends WasmValue, C extends WasmValue, _D2 extends WasmValue, _KD2 extends WasmValue> =
   M extends [infer T, infer MK, infer MB extends unknown[], infer S extends unknown[][], infer Base]
     ? (MK extends 'eeeeeeeeeeeeeeeeee' ? T : $MergeAt<T, MB, S>) extends infer T0
-      ? [$ColLoop<T0, T0, Base, $Off<D>, $AlignAddr<D>, KD, CM, SRC, A, DA, C>, 'eeeeeeeeeeeeeeeeee', [], $Empty, Base]
+      ? (KD extends '00000000000000000000000101000000'
+        ? (C extends \`00000000000000000000000\${string}\`
+          ? ($SplitP20<$Slice<D>> extends [infer P20 extends string, infer L4 extends string]
+            ? [$ColLoopFast<T0, T0, Base, $Off<D>, P20, L4, CM, SRC, A, DA, C>, 'eeeeeeeeeeeeeeeeee', [], $Empty, Base]
+            : never)
+          : [$ColLoop<T0, T0, Base, $Off<D>, $AlignAddr<D>, KD, CM, SRC, A, DA, C>, 'eeeeeeeeeeeeeeeeee', [], $Empty, Base])
+        : [$ColLoop<T0, T0, Base, $Off<D>, $AlignAddr<D>, KD, CM, SRC, A, DA, C>, 'eeeeeeeeeeeeeeeeee', [], $Empty, Base])
       : never
     : never`;
     const oldSpan = `type $Tex_10_6_6_16_0_6<M extends $Node, D extends WasmValue, KD extends WasmValue, CM extends WasmValue, SRC extends WasmValue, A extends WasmValue, DA extends WasmValue, B extends WasmValue, DB extends WasmValue, C extends WasmValue, D2 extends WasmValue, KD2 extends WasmValue> =
@@ -940,7 +978,7 @@ type $SpanLoop<M extends $Node, R extends $Node, D extends WasmValue, KD extends
   ? M
   : C extends \`00000000000000000000000\${string}\`
   ? ($Store8<M, D, $SpanPix<R, CM, SRC, $TexIdx_10_6_6_16_0_6<A, B>>> extends infer M2 extends $Node
-    ? $SpanLoop<M2, R, Wasm.I32Add<D, KD>, KD, CM, SRC, Wasm.I32Add<A, DA>, DA, Wasm.I32Add<B, DB>, DB, Wasm.I32Sub<C, '00000000000000000000000000000001'>>
+    ? $SpanLoop<M2, R, KD extends '00000000000000000000000000000001' ? $IncTop32<D> : Wasm.I32Add<D, KD>, KD, CM, SRC, Wasm.I32Add<A, DA>, DA, Wasm.I32Add<B, DB>, DB, $DecTop32<C>>
     : never)
   : $BlitH<C> extends infer H extends WasmValue
     ? $SpanLoop<M, R, D, KD, CM, SRC, A, DA, B, DB, H> extends infer M2 extends $Node
@@ -958,6 +996,8 @@ type $Tex_10_6_6_16_0_6<M extends $Node, D extends WasmValue, KD extends WasmVal
       .replace(oldWrite, newWrite)
       .replace(oldBlit, newBlit)
       .replace(oldFill, newFill)
+      .replace(oldIdx16, newIdx16)
+      .replace(oldIdxSpan, newIdxSpan)
       .replace(oldCol, newCol)
       .replace(oldSpan, newSpan)
       .replace("${c28}${c29}${c30}` : never", "${c28}00` : never");
