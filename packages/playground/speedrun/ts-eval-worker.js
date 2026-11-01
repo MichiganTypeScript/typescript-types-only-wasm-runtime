@@ -43,7 +43,7 @@ self.customTSWorkerFactory = (TSWorker, tsArg) => class extends TSWorker {
     };
 
     // A Move type as [forward, side (+ right), turn (+ left), buttons], a ticcmd's fields.
-    const MOVE = ["forward", "back", "strafeLeft", "strafeRight", "turnLeft", "turnRight", "fire", "use"];
+    const MOVE = ["forward", "back", "strafeLeft", "strafeRight", "turnLeft", "turnRight", "fire", "use", "weapon"];
     const STAGES = ["E1M1", "E1M2", "E1M3", "E1M4", "E1M5", "E1M6", "E1M7", "E1M8", "E1M9"];
     const WEAPONS = ["fist", "chainsaw", "pistol", "shotgun", "chaingun", "rocket"];
     const boolOf = (t, name) => {
@@ -76,6 +76,10 @@ self.customTSWorkerFactory = (TSWorker, tsArg) => class extends TSWorker {
           m[name] = 1;
           continue;
         }
+        if (name === "weapon") {
+          m.weapon = intOf(v, "weapon", 1, 7);
+          continue;
+        }
         const n = literal(v);
         const max = ["back", "strafeLeft", "turnRight"].includes(name) ? 128 : 127;
         if (!(Number.isInteger(n) && n >= 0 && n <= max)) throw new Error(`${name} must be 0 to ${max}, got ${n}`);
@@ -87,7 +91,7 @@ self.customTSWorkerFactory = (TSWorker, tsArg) => class extends TSWorker {
         (m.forward ?? 0) - (m.back ?? 0),
         (m.strafeRight ?? 0) - (m.strafeLeft ?? 0),
         (m.turnLeft ?? 0) - (m.turnRight ?? 0),
-        (m.fire ?? 0) | ((m.use ?? 0) << 1),
+        (m.fire ?? 0) | ((m.use ?? 0) << 1) | (m.weapon ? 4 | ((m.weapon - 1) << 3) : 0),
       ];
     };
     const movesOf = (t) => {

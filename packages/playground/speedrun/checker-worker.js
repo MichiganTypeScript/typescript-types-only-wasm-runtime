@@ -117,34 +117,52 @@ const sameMap = (a, b) => {
 const alignedFrames = (a, b) => {
   const n = Math.min(a.length, b.length);
   const memA = new Map(), memB = new Map();
+  const demoA = new Map(), demoB = new Map();
   const out = new Array(n).fill(false);
   let curA, curB;
-  const step = (entry, mem, cur) => {
+  const step = (entry, mem, demo, cur) => {
     const keys = Array.isArray(entry) ? entry : (entry?.keys ?? []);
     const pokes = Array.isArray(entry) ? [] : (entry?.poke ?? []);
     const other = [];
     for (const [addr, w] of pokes) {
       if (isDemoP(addr)) cur = w;
+      else if (addr >= 8192 && addr < 65536) demo.set(addr, w);
       else if (addr < 65536) mem.set(addr, w);
       else other.push([addr, w]);
     }
     let tic;
     if (cur !== undefined) {
-      const w = mem.get(cur);
+      const w = demo.get(cur);
       if (w === undefined || w === DEMO_END) cur = undefined;
       else { tic = w; cur += 4; }
     }
     return { cur, sig: JSON.stringify([keys, tic, other]) };
   };
   for (let i = 0; i < n; i++) {
-    const sa = step(a[i], memA, curA);
-    const sb = step(b[i], memB, curB);
+    const sa = step(a[i], memA, demoA, curA);
+    const sb = step(b[i], memB, demoB, curB);
     curA = sa.cur;
     curB = sb.cur;
     if (sa.sig !== sb.sig || curA !== curB) break;
     out[i] = sameMap(memA, memB);
   }
   return out;
+};
+const diffDemoPokes = (a, b, kept) => {
+  const demoA = new Map(), demoB = new Map();
+  for (let i = 0; i < kept; i++) {
+    for (const [addr, w] of (Array.isArray(a[i]) ? [] : (a[i]?.poke ?? []))) {
+      if (addr >= 8192 && addr < 65536) demoA.set(addr, w);
+    }
+    for (const [addr, w] of (Array.isArray(b[i]) ? [] : (b[i]?.poke ?? []))) {
+      if (addr >= 8192 && addr < 65536) demoB.set(addr, w);
+    }
+  }
+  const patch = [];
+  for (const [addr, w] of demoB) {
+    if (demoA.get(addr) !== w) patch.push([addr, w]);
+  }
+  return patch;
 };
 
 const readCheckpoint = async (runId) => {
@@ -331,6 +349,16 @@ self.onmessage = async ({ data }) => {
           files = old;
           kept = f + 1;
           baseMs = resume.elapsedMs ?? 0;
+          if (!sameScript && kept > 0 && kept < keyScript.length) {
+            const patch = diffDemoPokes(saved.keyScript, keyScript, kept);
+            if (patch.length) {
+              keyScript = keyScript.slice();
+              const entry = keyScript[kept];
+              const keys = Array.isArray(entry) ? entry : (entry?.keys ?? []);
+              const poke = Array.isArray(entry) ? patch : [...patch, ...(entry?.poke ?? [])];
+              keyScript[kept] = { ...(Array.isArray(entry) ? {} : entry), keys, poke };
+            }
+          }
         }
       }
     }
