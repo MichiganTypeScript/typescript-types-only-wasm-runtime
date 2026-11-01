@@ -13,10 +13,10 @@
 //      { kind: "frame", index, rgba, chunks, ms }  frame `index` finished
 //      { kind: "kept", frames }                    frames 0 to frames-1 are the saved run's
 //      { kind: "log", text } | { kind: "end", result } | { kind: "error", text }
-import { start, moduleShape, rgbaFrom } from "./run.browser.js?v=4";
+import { start, moduleShape, rgbaFrom } from "./run.browser.js?v=5";
 import * as tsrs from "./tsrs/browser.js";
-import * as tsgo from "./tsgo/tsgo.js";
-import * as tsgoDoom from "./tsgo/tsgo-doom.js?v=4";
+import * as tsgo from "./tsgo/tsgo.js?v=5";
+import * as tsgoDoom from "./tsgo/tsgo-doom.js?v=5";
 
 const CHECKERS = {
   "tsgo-doom": { label: "tsgo-doom", load: () => tsgoDoom.loadModule(), tsc: (args, o) => tsgoDoom.tsc(args, o) },
@@ -70,12 +70,12 @@ const writeAll = (h, bytes, at = 0) => {
 
 // A terminated worker lets go of its access handles some time after
 // terminate() returns; until then opening one throws NoModificationAllowedError.
-const openHandleRetry = async (name) => {
+const openHandleRetry = async (name, maxRetries = 100) => {
   for (let i = 0; ; i++) {
     try {
       return await openHandle(name);
     } catch (e) {
-      if (e?.name !== "NoModificationAllowedError" || i >= 100) throw e;
+      if (e?.name !== "NoModificationAllowedError" || i >= maxRetries) throw e;
       await new Promise((r) => setTimeout(r, 100));
     }
   }
@@ -156,31 +156,86 @@ const readCheckpoint = async (runId) => {
   return saved.sort((a, b) => b.seq - a.seq)[0] ?? null;
 };
 
-// Deletes the saved run's files, except those whose names start with `keep`.
-const clearRun = async (keep) => {
+// Deletes orphaned run files not referenced by any tab's `meta*.json` or `keep`.
+const clearRun = async (keep, endName = "end.json") => {
   const dir = await runDir;
   if (!dir) return;
+  await dir.removeEntry(endName).catch(() => {});
+  const activeFiles = new Set();
+  if (keep) activeFiles.add(keep);
   const names = [];
-  for await (const name of dir.keys()) names.push(name);
-  for (const name of names) if (!keep || !name.startsWith(keep + "-")) await dir.removeEntry(name).catch(() => {});
+  for await (const name of dir.keys()) {
+    names.push(name);
+    if (/^meta(?:-[\w-]+)?\.json$/.test(name)) {
+      try {
+        const m = JSON.parse((await readText(name)) ?? "null");
+        if (m?.files) activeFiles.add(m.files);
+        if (m?.runId) activeFiles.add(m.runId);
+      } catch {}
+    }
+  }
+  for (const name of names) {
+    if (/^(?:meta|end)(?:-[\w-]+)?\.json$/.test(name)) continue;
+    if (![...activeFiles].some((f) => name.startsWith(f + "-"))) {
+      await dir.removeEntry(name).catch(() => {});
+    }
+  }
+};
+
+const readBytesSlice = async (name, len) => {
+  if (len <= 0) return new Uint8Array(0);
+  const dir = await runDir;
+  try {
+    const file = await (await dir.getFileHandle(name)).getFile();
+    return new Uint8Array(await file.slice(0, len).arrayBuffer());
+  } catch {
+    return new Uint8Array(0);
+  }
 };
 
 // Set up by openStore before the run; null when OPFS is unavailable.
 let store = null;
 // `kept` frames of an earlier run with these files stay; everything past them is cut.
-const openStore = async (files, kept = 0, boundsIndex = []) => {
+// If another tab holds `files` open (`NoModificationAllowedError`), forks to `forkRunId`
+// and copies the `kept` prefix bytes so both tabs persist independently.
+const openStore = async (files, kept = 0, boundsIndex = [], forkRunId = null) => {
+  const index = boundsIndex.slice(0, kept);
+  const bEnd = boundsEnd(index);
   try {
     const [frames, ckpt0, ckpt1, bounds, boundsAt] = await Promise.all(
-      ["frames.rgba", "ckpt-0.json", "ckpt-1.json", "bounds.jsonl", "bounds.json"].map((n) => openHandleRetry(`${files}-${n}`)),
+      ["frames.rgba", "ckpt-0.json", "ckpt-1.json", "bounds.jsonl", "bounds.json"].map((n) => openHandleRetry(`${files}-${n}`, 15)),
     );
-    if (!frames) return;
-    const index = boundsIndex.slice(0, kept);
+    if (!frames) return files;
     frames.truncate(kept * FRAME_BYTES);
-    bounds.truncate(boundsEnd(index));
+    bounds.truncate(bEnd);
     writeAll(boundsAt, new TextEncoder().encode(JSON.stringify(index)));
     store = { frames, ckpts: [ckpt0, ckpt1], bounds, boundsAt, index };
+    return files;
   } catch (e) {
+    if (e?.name === "NoModificationAllowedError") {
+      const forked = forkRunId && forkRunId !== files ? forkRunId : crypto.randomUUID();
+      try {
+        const [frameBytes, boundBytes] = await Promise.all([
+          readBytesSlice(`${files}-frames.rgba`, kept * FRAME_BYTES),
+          readBytesSlice(`${files}-bounds.jsonl`, bEnd),
+        ]);
+        const [frames, ckpt0, ckpt1, bounds, boundsAt] = await Promise.all(
+          ["frames.rgba", "ckpt-0.json", "ckpt-1.json", "bounds.jsonl", "bounds.json"].map((n) => openHandleRetry(`${forked}-${n}`, 15)),
+        );
+        if (frames) {
+          writeAll(frames, frameBytes);
+          writeAll(bounds, boundBytes);
+          writeAll(boundsAt, new TextEncoder().encode(JSON.stringify(index)));
+          store = { frames, ckpts: [ckpt0, ckpt1], bounds, boundsAt, index };
+          return forked;
+        }
+      } catch (e2) {
+        post({ kind: "log", text: `progress will not survive a reload: ${e2}` });
+        return files;
+      }
+    }
     post({ kind: "log", text: `progress will not survive a reload: ${e}` });
+    return files;
   }
 };
 const encoder = new TextEncoder();
@@ -229,17 +284,22 @@ const load = async () => {
 
 self.onmessage = async ({ data }) => {
   try {
-    let { keyScript, checker: checkerName, runId } = data;
+    let { keyScript, checker: checkerName, runId, tabId } = data;
+    const metaName = tabId ? `meta-${tabId}.json` : "meta.json";
+    const endName = tabId ? `end-${tabId}.json` : "end.json";
     let files = runId;
+    let savedMeta = data.meta;
     let resume = null;
     let seq = 0;
     let kept = 0;
     let boundsIndex = [];
     let baseMs = 0;
+    const readSavedMeta = async () => JSON.parse((await readText(metaName)) ?? (await readText("meta.json")) ?? "null");
     if (data.resume) {
-      const saved = JSON.parse((await readText("meta.json")) ?? "null");
+      const saved = await readSavedMeta();
       if (!saved) throw new Error("no saved run to resume");
       ({ runId, keyScript, checker: checkerName } = saved);
+      savedMeta = saved.meta;
       files = saved.files ?? runId;
       const ckpt = await readCheckpoint(files);
       if (ckpt) ({ seq, point: resume } = ckpt);
@@ -247,7 +307,7 @@ self.onmessage = async ({ data }) => {
       kept = resume ? (resume.scriptFrame ?? 0) + (resume.done ? 1 : 0) : 0;
       baseMs = resume?.elapsedMs ?? (saved.meta?.startedAt ? Math.max(0, Date.now() - saved.meta.startedAt) : 0);
     } else {
-      const saved = data.continue ? JSON.parse((await readText("meta.json")) ?? "null") : null;
+      const saved = data.continue ? await readSavedMeta() : null;
       if (saved && Array.isArray(saved.keyScript)) {
         const old = saved.files ?? saved.runId;
         boundsIndex = await readBoundsIndex(old);
@@ -273,17 +333,23 @@ self.onmessage = async ({ data }) => {
           baseMs = resume.elapsedMs ?? 0;
         }
       }
-      await clearRun(resume ? files : null);
-      await writeFile("meta.json", JSON.stringify({ runId, files, meta: data.meta, keyScript, checker: checkerName }));
     }
-    await openStore(files, kept, boundsIndex);
-    if (!data.resume) {
-      post({ kind: "kept", frames: kept, elapsedMs: baseMs });
-      // a reload now resumes from the kept frame's end, not from where the old run was
+    const openedFiles = await openStore(files, kept, boundsIndex, runId);
+    const forked = openedFiles !== files;
+    files = openedFiles;
+    if (forked) runId = files;
+    const metaPayload = JSON.stringify({ runId, files, meta: savedMeta, keyScript, checker: checkerName });
+    await writeFile(metaName, metaPayload).catch(() => {});
+    if (metaName !== "meta.json" && !forked) await writeFile("meta.json", metaPayload).catch(() => {});
+    if (!data.resume || forked) {
+      await clearRun(files, endName);
       if (resume) seq = Math.max(seq, (await readCheckpoint(files))?.seq ?? 0), saveCheckpoint(++seq, resume);
     }
+    if (!data.resume) {
+      post({ kind: "kept", frames: kept, elapsedMs: baseMs });
+    }
     if (resume?.done && kept >= keyScript.length) {
-      await writeFile("end.json", JSON.stringify({ ms: Math.round(baseMs) }));
+      await writeFile(endName, JSON.stringify({ ms: Math.round(baseMs) })).catch(() => {});
       return post({ kind: "end", result: { chunks: 0, ms: baseMs } });
     }
     const checker = CHECKERS[checkerName] ?? CHECKERS["tsgo-doom"];
@@ -317,11 +383,15 @@ self.onmessage = async ({ data }) => {
         index++;
       },
       onLog: (t) => post({ kind: "log", text: t }),
-      onCheck: (ms, n) => post({ kind: "status", text: `tsc ${ms.toFixed(0)} ms, ${n} probes` }),
+      onCheck: (ms, n, memBytes) => post({
+        kind: "status",
+        text: `tsc ${ms.toFixed(0)} ms, ${n} probes${memBytes ? `, ${(memBytes / 1073741824).toFixed(2)} GB` : ""}`,
+        memBytes,
+      }),
     });
     const totalMs = baseMs + (performance.now() - t0);
     // A failed run is not finished: leave end.json out so a reload retries from the checkpoint.
-    if (!result.failed) await writeFile("end.json", JSON.stringify({ ms: Math.round(totalMs) }));
+    if (!result.failed) await writeFile(endName, JSON.stringify({ ms: Math.round(totalMs) })).catch(() => {});
     post({ kind: "end", result: { chunks: result.chunks, failed: result.failed, ms: totalMs } });
   } catch (e) {
     post({ kind: "error", text: String(e?.stack ?? e) });

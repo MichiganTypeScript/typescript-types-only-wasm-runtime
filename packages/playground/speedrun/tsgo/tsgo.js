@@ -142,16 +142,18 @@ export async function tsc(args, options = {}) {
   go.exit = (code) => {
     exitCode = code;
   };
+  let memoryBytes = 0;
   try {
     const instance = await WebAssembly.instantiate(module, go.importObject);
     await go.run(instance);
+    memoryBytes = instance.exports.mem?.buffer?.byteLength ?? 0;
   } finally {
     globalThis.fs = saved.fs;
     globalThis.process = saved.process;
   }
   const text = (chunks) => chunks.map((c) => decoder.decode(c, { stream: true })).join("") + decoder.decode();
   const stdout = text(out);
-  const result = { exitCode, stdout, stderr: text(err) };
+  const result = { exitCode, stdout, stderr: text(err), memoryBytes };
   if (options.diagnostics === "json") result.diagnostics = parseDiagnostics(stdout, cwd);
   return result;
 }

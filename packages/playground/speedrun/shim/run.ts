@@ -19,7 +19,7 @@ export interface Start {
   fuel: number;
   onCheckpoint: (point: Checkpoint & { frames?: unknown[] }, path: string) => void;
   onLog: (text: string) => void;
-  onCheck?: (ms: number, names: number) => void;
+  onCheck?: (ms: number, names: number, memoryBytes?: number) => void;
 }
 
 const SAVE = "/p/run.json";

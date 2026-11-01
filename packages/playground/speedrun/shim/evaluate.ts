@@ -14,10 +14,10 @@
 export type Tsc = (
   args: string[],
   options: { cwd: string; files: Record<string, string>; diagnostics: "json" },
-) => Promise<{ exitCode: number; diagnostics?: { fileName: string; startPosition: { line: number }; code: number; text: string }[] }>;
+) => Promise<{ exitCode: number; memoryBytes?: number; diagnostics?: { fileName: string; startPosition: { line: number }; code: number; text: string }[] }>;
 
 /// Set by the host before `run`: node.js's `tsc` in Node, browser.js's in a worker.
-export const host: { tsc?: Tsc; root: string; files: Record<string, string>; config: object; onRun?: (ms: number, names: number) => void } = {
+export const host: { tsc?: Tsc; root: string; files: Record<string, string>; config: object; onRun?: (ms: number, names: number, memoryBytes?: number) => void } = {
   root: "/p",
   files: {},
   config: {},
@@ -84,7 +84,7 @@ class ProbeProgram {
     });
     const t = performance.now();
     const result = await host.tsc(["-p", "."], { cwd: host.root, files, diagnostics: "json" });
-    host.onRun?.(performance.now() - t, names.length);
+    host.onRun?.(performance.now() - t, names.length, result.memoryBytes);
     const out = new Map<string, string>();
     const errors: string[] = [];
     for (const d of result.diagnostics ?? []) {

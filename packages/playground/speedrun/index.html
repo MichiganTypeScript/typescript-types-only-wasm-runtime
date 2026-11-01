@@ -999,13 +999,30 @@ function normalizeScriptText(text) {
   return text;
 }
 
+const TAB_ID = (() => {
+  try {
+    let id = sessionStorage.getItem("doom-tab-id");
+    if (!id) {
+      id = crypto.randomUUID().slice(0, 8);
+      sessionStorage.setItem("doom-tab-id", id);
+    }
+    return id;
+  } catch {
+    return "";
+  }
+})();
+const META_FILE = TAB_ID ? `meta-${TAB_ID}.json` : "meta.json";
+const END_FILE = TAB_ID ? `end-${TAB_ID}.json` : "end.json";
+
 // The run checker-worker.js saves to OPFS as it goes (see its header). Returns
 // null when there is none, or when the page was opened for a different script.
 async function restoreRun(wantText) {
   try {
     const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle("current-run");
     const read = async (name) => (await (await dir.getFileHandle(name)).getFile());
-    const saved = JSON.parse(await (await read("meta.json")).text());
+    let usedTabMeta = true;
+    const savedFile = await read(META_FILE).catch(() => { usedTabMeta = false; return read("meta.json"); });
+    const saved = JSON.parse(await savedFile.text());
     const savedText = normalizeScriptText(saved.meta.t);
     if (wantText !== undefined && normalizeScriptText(wantText) !== savedText) return null;
     // frame n at n * FRAME_BYTES; a torn last frame is dropped and checked again
@@ -1022,7 +1039,8 @@ async function restoreRun(wantText) {
         if (!ckpt || c.seq > ckpt.seq) ckpt = c;
       } catch {}
     }
-    const endObj = await read("end.json").then(async (f) => { try { return JSON.parse(await f.text()); } catch { return {}; } }, () => null);
+    const endName = usedTabMeta ? END_FILE : "end.json";
+    const endObj = await read(endName).then(async (f) => { try { return JSON.parse(await f.text()); } catch { return {}; } }, () => null);
     const ended = endObj !== null;
     const elapsedMs = endObj?.ms ?? ckpt?.point?.elapsedMs ?? (saved.meta.startedAt ? Math.max(0, Date.now() - saved.meta.startedAt) : 0);
     return { ...saved.meta, t: savedText, runId: saved.runId, checker: saved.checker, keyScript: saved.keyScript, frames: restoredFrames, ended, elapsedMs };
@@ -1223,7 +1241,7 @@ function execute(script, saved) {
   stageText = saved ? "resuming from checkpoint" : "loading the checker";
   runT0 = performance.now() - (saved?.elapsedMs ?? 0);
   scrub.max = String(Math.max(0, frames.length - 1));
-  worker = new Worker("checker-worker.js?v=4", { type: "module" });
+  worker = new Worker("checker-worker.js?v=5", { type: "module" });
   worker.onmessage = ({ data: m }) => {
     if (m.kind === "status") {
       if (m.text.startsWith("tsc ")) {
@@ -1315,9 +1333,10 @@ function execute(script, saved) {
   }
     if (!frames.length || m.kind !== "frame") drawHud();
   };
-  if (saved) return worker.postMessage({ resume: true });
+  if (saved) return worker.postMessage({ resume: true, tabId: TAB_ID });
   worker.postMessage({
     runId: runKey,
+    tabId: TAB_ID,
     checker: checkerSel.value,
     keyScript: script.map((st) => (st.poke ? { keys: st.keys, poke: st.poke } : st.keys)),
     meta: { t: editor.value, x: Number(fpsSel.value), labels, startedAt },
@@ -2068,7 +2087,9 @@ const gzipBytes = (blob, mode) => new Response(blob.stream().pipeThrough(mode ==
 async function exportRun() {
   const dir = await currentRunDir();
   const readFile = async (name) => (await dir.getFileHandle(name)).getFile();
-  const saved = JSON.parse(await (await readFile("meta.json").catch(() => null))?.text() ?? "null");
+  let usedTabMeta = true;
+  const metaBlob = await readFile(META_FILE).catch(() => { usedTabMeta = false; return readFile("meta.json").catch(() => null); });
+  const saved = JSON.parse(await metaBlob?.text() ?? "null");
   if (!saved) return showToast("Nothing to export yet: press Run first");
   let checkpoint = null;
   for (const i of [0, 1]) {
@@ -2077,7 +2098,7 @@ async function exportRun() {
       if (!checkpoint || c.seq > checkpoint.seq) checkpoint = c;
     } catch { /* missing, or torn by a tab closed mid-write */ }
   }
-  const ended = await readFile("end.json").then(() => true, () => false);
+  const ended = await readFile(usedTabMeta ? END_FILE : "end.json").then(() => true, () => false);
   const all = await readFile(`${saved.files ?? saved.runId}-frames.rgba`).catch(() => null);
   const n = all ? Math.floor(all.size / FRAME_BYTES) : 0;
   const header = {
@@ -2130,9 +2151,7 @@ async function importRun(file) {
   // deleted, and must not be mistaken for this run's.
   const runId = crypto.randomUUID();
   const dir = await currentRunDir();
-  const names = [];
-  for await (const name of dir.keys()) names.push(name);
-  for (const name of names) await dir.removeEntry(name).catch(() => {});
+  await dir.removeEntry(END_FILE).catch(() => {});
   const put = async (name, data) => {
     const w = await (await dir.getFileHandle(name, { create: true })).createWritable();
     await w.write(data);
@@ -2140,9 +2159,9 @@ async function importRun(file) {
   };
   await put(`${runId}-frames.rgba`, frameBytes);
   if (header.checkpoint) await put(`${runId}-ckpt-0.json`, JSON.stringify(header.checkpoint));
-  if (header.ended) await put("end.json", "{}");
-  // meta.json last: restoreRun treats a directory without it as no run.
-  await put("meta.json", JSON.stringify({
+  if (header.ended) await put(END_FILE, "{}");
+  // META_FILE last: restoreRun treats a directory without it as no run.
+  await put(META_FILE, JSON.stringify({
     runId,
     meta: { t: header.script, x: header.x, labels: header.labels },
     keyScript: header.keyScript,
