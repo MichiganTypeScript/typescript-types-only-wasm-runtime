@@ -537,7 +537,7 @@
     </div>
     <p class="meta"><button type="button" class="inline-link" id="backToEditorBtn">&larr; Back to Live Type-Checker &amp; Editor</button></p>
     <p class="meta">A full run takes hours to check, so these are screen recordings of runs that were checked to the end earlier. The overlay shows each frame's check time.</p>
-    <video id="recVideo" controls playsinline preload="metadata" src="recordings/ts7.1-tas.mp4?v=3" style="width:100%;background:#000;border-radius:4px"></video>
+    <video id="recVideo" controls playsinline preload="metadata" src="recordings/ts7.1-tas.mp4?v=4" style="width:100%;background:#000;border-radius:4px"></video>
   </section>
   <section class="card" style="max-width:1000px">
     <div class="row">
@@ -1174,7 +1174,7 @@ document.getElementById("backToEditorBtn").addEventListener("click", () => switc
 
 document.getElementById("recSel").addEventListener("change", (e) => {
   const v = document.getElementById("recVideo");
-  v.src = "recordings/" + e.target.value + "?v=3";
+  v.src = "recordings/" + e.target.value + "?v=4";
   v.muted = !document.getElementById("soundChk")?.checked;
   v.play().catch(() => {});
 });

@@ -55,5 +55,5 @@ T0=$(date +%s)
 # minutes 0 is no limit
 while kill -0 $D 2>/dev/null && { [ "$SECS" = 0 ] || [ $(($(date +%s) - T0)) -lt "$SECS" ]; }; do sleep 2; done
 echo "$TS: ran $(($(date +%s) - T0))s"
-kill $D 2>/dev/null; sleep 2
+kill $D 2>/dev/null || true; sleep 2
 echo "$TS: $(find "$REC" -name "*.png" | wc -l | tr -d ' ') screens in $REC"
