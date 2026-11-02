@@ -809,28 +809,18 @@ export const run = async (
       ? $Blit8<M2, Wasm.I32Add<D, Wasm.I32Mul<H, DS>>, Wasm.I32Add<S, Wasm.I32Mul<H, SS>>, Wasm.I32Sub<C, H>, DS, SS>
       : never
     : never`;
-    const newBlit = `type $Blit8<M extends $Node, D extends WasmValue, S extends WasmValue, C extends WasmValue, DS extends WasmValue, SS extends WasmValue> =
-  C extends '00000000000000000000000000000000'
-  ? M
-  : C extends \`00000000000000000000000\${string}\`
-  ? (DS extends '00000000000000000000000000000001'
-    ? (SS extends '00000000000000000000000000000001'
-      ? (C extends \`\${string}00\`
-        ? (D extends \`\${string}00\`
-          ? (S extends \`\${string}00\`
-            ? ($Write<M, D, $Read<M, S>> extends infer M2 extends $Node
-              ? $Blit8<M2, Wasm.I32Add<D, '00000000000000000000000000000100'>, Wasm.I32Add<S, '00000000000000000000000000000100'>, Wasm.I32Sub<C, '00000000000000000000000000000100'>, DS, SS>
-              : never)
-            : ($Store8<M, D, $Load8U<M, S>> extends infer M2 extends $Node ? $Blit8<M2, Wasm.I32Add<D, DS>, Wasm.I32Add<S, SS>, Wasm.I32Sub<C, '00000000000000000000000000000001'>, DS, SS> : never))
-          : ($Store8<M, D, $Load8U<M, S>> extends infer M2 extends $Node ? $Blit8<M2, Wasm.I32Add<D, DS>, Wasm.I32Add<S, SS>, Wasm.I32Sub<C, '00000000000000000000000000000001'>, DS, SS> : never))
-        : ($Store8<M, D, $Load8U<M, S>> extends infer M2 extends $Node ? $Blit8<M2, Wasm.I32Add<D, DS>, Wasm.I32Add<S, SS>, Wasm.I32Sub<C, '00000000000000000000000000000001'>, DS, SS> : never))
-      : ($Store8<M, D, $Load8U<M, S>> extends infer M2 extends $Node ? $Blit8<M2, Wasm.I32Add<D, DS>, Wasm.I32Add<S, SS>, Wasm.I32Sub<C, '00000000000000000000000000000001'>, DS, SS> : never))
-    : ($Store8<M, D, $Load8U<M, S>> extends infer M2 extends $Node ? $Blit8<M2, Wasm.I32Add<D, DS>, Wasm.I32Add<S, SS>, Wasm.I32Sub<C, '00000000000000000000000000000001'>, DS, SS> : never))
-  : $BlitH<C> extends infer H extends WasmValue
-    ? $Blit8<M, D, S, H, DS, SS> extends infer M2 extends $Node
-      ? $Blit8<M2, Wasm.I32Add<D, Wasm.I32Mul<H, DS>>, Wasm.I32Add<S, Wasm.I32Mul<H, SS>>, Wasm.I32Sub<C, H>, DS, SS>
-      : never
-    : never`;
+   const newBlit = `type $Blit8<M extends $Node, D extends WasmValue, S extends WasmValue, C extends WasmValue, DS extends WasmValue, SS extends WasmValue> =
+   C extends '00000000000000000000000000000000'
+   ? M
+   : [C, DS, SS, D, S] extends ['00000000000000000000000000000100', '00000000000000000000000000000001', '00000000000000000000000000000001', \`\${string}00\`, \`\${string}00\`]
+     ? $Write<M, D, $Read<M, S>>
+     : C extends \`00000000000000000000000000000\${string}\`
+       ? ($Store8<M, D, $Load8U<M, S>> extends infer M2 extends $Node ? $Blit8<M2, Wasm.I32Add<D, DS>, Wasm.I32Add<S, SS>, Wasm.I32Sub<C, '00000000000000000000000000000001'>, DS, SS> : never)
+       : $BlitH<C> extends infer H extends WasmValue
+         ? $Blit8<M, D, S, H, DS, SS> extends infer M2 extends $Node
+           ? $Blit8<M2, Wasm.I32Add<D, Wasm.I32Mul<H, DS>>, Wasm.I32Add<S, Wasm.I32Mul<H, SS>>, Wasm.I32Sub<C, H>, DS, SS>
+           : never
+         : never`;
     const oldFill = `type $Fill8<M extends $Node, D extends WasmValue, V extends WasmValue, C extends WasmValue> =
   C extends '00000000000000000000000000000000'
   ? M
@@ -843,25 +833,19 @@ export const run = async (
       ? $Fill8<M2, Wasm.I32Add<D, H>, V, Wasm.I32Sub<C, H>>
       : never
     : never`;
-    const newFill = `type $Low8<V extends string> = V extends \`000000000000000000000000\${infer B}\` ? B : V extends \`\${infer _0}\${infer _1}\${infer _2}\${infer _3}\${infer _4}\${infer _5}\${infer _6}\${infer _7}\${infer _8}\${infer _9}\${infer _10}\${infer _11}\${infer _12}\${infer _13}\${infer _14}\${infer _15}\${infer _16}\${infer _17}\${infer _18}\${infer _19}\${infer _20}\${infer _21}\${infer _22}\${infer _23}\${infer B}\` ? B : never
-type $Fill8<M extends $Node, D extends WasmValue, V extends WasmValue, C extends WasmValue> =
-  C extends '00000000000000000000000000000000'
-  ? M
-  : C extends \`00000000000000000000000\${string}\`
-  ? (C extends \`\${string}00\`
-    ? (D extends \`\${string}00\`
-      ? ($Low8<V> extends infer B extends string
-        ? ($Write<M, D, \`\${B}\${B}\${B}\${B}\`> extends infer M2 extends $Node
-          ? $Fill8<M2, Wasm.I32Add<D, '00000000000000000000000000000100'>, V, Wasm.I32Sub<C, '00000000000000000000000000000100'>>
-          : never)
-        : never)
-      : ($Store8<M, D, V> extends infer M2 extends $Node ? $Fill8<M2, Wasm.I32Add<D, '00000000000000000000000000000001'>, V, Wasm.I32Sub<C, '00000000000000000000000000000001'>> : never))
-    : ($Store8<M, D, V> extends infer M2 extends $Node ? $Fill8<M2, Wasm.I32Add<D, '00000000000000000000000000000001'>, V, Wasm.I32Sub<C, '00000000000000000000000000000001'>> : never))
-  : $BlitH<C> extends infer H extends WasmValue
-    ? $Fill8<M, D, V, H> extends infer M2 extends $Node
-      ? $Fill8<M2, Wasm.I32Add<D, H>, V, Wasm.I32Sub<C, H>>
-      : never
-    : never`;
+   const newFill = `type $Low8<V extends string> = V extends \`000000000000000000000000\${infer B}\` ? B : V extends \`\${infer _0}\${infer _1}\${infer _2}\${infer _3}\${infer _4}\${infer _5}\${infer _6}\${infer _7}\${infer _8}\${infer _9}\${infer _10}\${infer _11}\${infer _12}\${infer _13}\${infer _14}\${infer _15}\${infer _16}\${infer _17}\${infer _18}\${infer _19}\${infer _20}\${infer _21}\${infer _22}\${infer _23}\${infer B}\` ? B : never
+ type $Fill8<M extends $Node, D extends WasmValue, V extends WasmValue, C extends WasmValue> =
+   C extends '00000000000000000000000000000000'
+   ? M
+   : [C, D] extends ['00000000000000000000000000000100', \`\${string}00\`]
+     ? ($Low8<V> extends infer B extends string ? $Write<M, D, \`\${B}\${B}\${B}\${B}\`> : never)
+     : C extends \`00000000000000000000000000000\${string}\`
+       ? ($Store8<M, D, V> extends infer M2 extends $Node ? $Fill8<M2, Wasm.I32Add<D, '00000000000000000000000000000001'>, V, Wasm.I32Sub<C, '00000000000000000000000000000001'>> : never)
+       : $BlitH<C> extends infer H extends WasmValue
+         ? $Fill8<M, D, V, H> extends infer M2 extends $Node
+           ? $Fill8<M2, Wasm.I32Add<D, H>, V, Wasm.I32Sub<C, H>>
+           : never
+         : never`;
     const oldCol = `type $Tex_16_0_7<M extends $Node, D extends WasmValue, KD extends WasmValue, CM extends WasmValue, SRC extends WasmValue, A extends WasmValue, DA extends WasmValue, B extends WasmValue, DB extends WasmValue, C extends WasmValue, D2 extends WasmValue, KD2 extends WasmValue> =
   C extends '00000000000000000000000000000000'
   ? M
@@ -999,8 +983,9 @@ type $Tex_10_6_6_16_0_6<M extends $Node, D extends WasmValue, KD extends WasmVal
       .replace(oldIdx16, newIdx16)
       .replace(oldIdxSpan, newIdxSpan)
       .replace(oldCol, newCol)
-      .replace(oldSpan, newSpan)
-      .replace("${c28}${c29}${c30}` : never", "${c28}00` : never");
+     .replace(oldSpan, newSpan)
+     .replace("${c28}${c29}${c30}` : never", "${c28}00` : never")
+     .replace("type $State = [$Node, ...WasmValue[]]", "type $State = [any, ...WasmValue[]]");
     // The string module has one import (`from 'ts-type-math'`, bare names); the
     // Word4 module has two (`Convert` from the package, and the byte-tuple
     // helpers from the `/word4` subpath, some `X as Y` aliased and one a
