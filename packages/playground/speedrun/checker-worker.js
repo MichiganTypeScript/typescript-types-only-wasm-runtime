@@ -63,9 +63,16 @@ const openHandle = async (name) => {
 };
 
 const writeAll = (h, bytes, at = 0) => {
-  if (at === 0) h.truncate(bytes.byteLength);
-  h.write(bytes, { at });
-  h.flush();
+  try {
+    if (at === 0) h.truncate(bytes.byteLength);
+    h.write(bytes, { at });
+    h.flush();
+  } catch (e) {
+    if (e?.name === "QuotaExceededError" || /quota/i.test(String(e?.message ?? e))) {
+      throw new Error("QuotaExceededError: Browser storage is full — delete old runs under Playback → Your runs (or Export run) to free disk space, then click Run to resume.");
+    }
+    throw e;
+  }
 };
 
 // A terminated worker lets go of its access handles some time after
@@ -193,6 +200,14 @@ const clearRun = async (keep, endName = "end.json") => {
     }
   }
   for (const name of names) {
+    if (name.endsWith("-bounds.jsonl") || name.endsWith("-bounds.json")) {
+      try {
+        const h = await openHandleRetry(name, 3);
+        if (h) { try { h.truncate(0); h.flush(); } finally { h.close(); } }
+      } catch {}
+      await dir.removeEntry(name).catch(() => {});
+      continue;
+    }
     if (/^(?:meta|end)(?:-[\w-]+)?\.json$/.test(name)) continue;
     if (![...activeFiles].some((f) => name.startsWith(f + "-"))) {
       await dir.removeEntry(name).catch(() => {});
@@ -216,35 +231,27 @@ let store = null;
 // `kept` frames of an earlier run with these files stay; everything past them is cut.
 // If another tab holds `files` open (`NoModificationAllowedError`), forks to `forkRunId`
 // and copies the `kept` prefix bytes so both tabs persist independently.
-const openStore = async (files, kept = 0, boundsIndex = [], forkRunId = null) => {
-  const index = boundsIndex.slice(0, kept);
-  const bEnd = boundsEnd(index);
+const openStore = async (files, kept = 0, _boundsIndex = [], forkRunId = null) => {
+  await clearRun(files);
   try {
-    const [frames, ckpt0, ckpt1, bounds, boundsAt] = await Promise.all(
-      ["frames.rgba", "ckpt-0.json", "ckpt-1.json", "bounds.jsonl", "bounds.json"].map((n) => openHandleRetry(`${files}-${n}`, 15)),
+    const [frames, ckpt0, ckpt1] = await Promise.all(
+      ["frames.rgba", "ckpt-0.json", "ckpt-1.json"].map((n) => openHandleRetry(`${files}-${n}`, 15)),
     );
     if (!frames) return files;
     frames.truncate(kept * FRAME_BYTES);
-    bounds.truncate(bEnd);
-    writeAll(boundsAt, new TextEncoder().encode(JSON.stringify(index)));
-    store = { frames, ckpts: [ckpt0, ckpt1], bounds, boundsAt, index };
+    store = { frames, ckpts: [ckpt0, ckpt1] };
     return files;
   } catch (e) {
     if (e?.name === "NoModificationAllowedError") {
       const forked = forkRunId && forkRunId !== files ? forkRunId : crypto.randomUUID();
       try {
-        const [frameBytes, boundBytes] = await Promise.all([
-          readBytesSlice(`${files}-frames.rgba`, kept * FRAME_BYTES),
-          readBytesSlice(`${files}-bounds.jsonl`, bEnd),
-        ]);
-        const [frames, ckpt0, ckpt1, bounds, boundsAt] = await Promise.all(
-          ["frames.rgba", "ckpt-0.json", "ckpt-1.json", "bounds.jsonl", "bounds.json"].map((n) => openHandleRetry(`${forked}-${n}`, 15)),
+        const frameBytes = await readBytesSlice(`${files}-frames.rgba`, kept * FRAME_BYTES);
+        const [frames, ckpt0, ckpt1] = await Promise.all(
+          ["frames.rgba", "ckpt-0.json", "ckpt-1.json"].map((n) => openHandleRetry(`${forked}-${n}`, 15)),
         );
         if (frames) {
           writeAll(frames, frameBytes);
-          writeAll(bounds, boundBytes);
-          writeAll(boundsAt, new TextEncoder().encode(JSON.stringify(index)));
-          store = { frames, ckpts: [ckpt0, ckpt1], bounds, boundsAt, index };
+          store = { frames, ckpts: [ckpt0, ckpt1] };
           return forked;
         }
       } catch (e2) {
@@ -265,15 +272,7 @@ const saveCheckpoint = (seq, point) => {
 };
 const boundsEnd = (index) => Math.max(0, ...index.filter(Boolean).map(([at, len]) => at + len));
 // Called with the JSON saveCheckpoint wrote for frame n's end.
-const saveBound = (n, json) => {
-  if (!store || !json) return;
-  const bytes = encoder.encode(json);
-  const at = boundsEnd(store.index);
-  store.bounds.write(bytes, { at });
-  store.bounds.flush();
-  store.index[n] = [at, bytes.byteLength];
-  writeAll(store.boundsAt, encoder.encode(JSON.stringify(store.index)));
-};
+const saveBound = () => {};
 const saveFrame = (n, rgba) => {
   if (store) writeAll(store.frames, rgba, n * FRAME_BYTES);
 };
@@ -341,9 +340,9 @@ self.onmessage = async ({ data }) => {
         const latest = (await readCheckpoint(old))?.point;
         const latestAt = latest ? latest.scriptFrame ?? 0 : -1;
         const latestKept = latest ? latestAt + (latest.done ? 1 : 0) : 0;
-        if (latest && aligned[latestAt] && latestKept >= f + 1 && (latestKept > 0 || sameScript)) {
-          resume = latest;
-          f = latestKept - 1;
+    if (latest && (sameScript || aligned[Math.min(latestAt, aligned.length - 1)]) && latestKept >= f + 1 && (latestKept > 0 || sameScript)) {
+      resume = latest;
+      f = latestKept - 1;
         } else if (f >= 0) resume = await readBound(old, boundsIndex[f]);
         if (resume) {
           files = old;

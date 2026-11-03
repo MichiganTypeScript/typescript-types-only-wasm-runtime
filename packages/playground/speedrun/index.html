@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DOOM in TypeScript Types — Speedrun Editor</title>
+  <title>DOOM in TypeScript Types - Speedrun Editor</title>
+  <link rel="icon" href="favicon.ico?v=1" sizes="any" />
 <style>
   :root {
     color-scheme: dark;
@@ -1217,6 +1218,11 @@ const END_FILE = TAB_ID ? `end-${TAB_ID}.json` : "end.json";
 async function restoreRun(wantText) {
   try {
     const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle("current-run");
+    for await (const name of dir.keys()) {
+      if (name.endsWith("-bounds.jsonl") || name.endsWith("-bounds.json")) {
+        await dir.removeEntry(name).catch(() => {});
+      }
+    }
     const read = async (name) => (await (await dir.getFileHandle(name)).getFile());
     let usedTabMeta = true;
     const savedFile = await read(META_FILE).catch(() => { usedTabMeta = false; return read("meta.json"); });
@@ -1257,6 +1263,20 @@ const PAST_FRAME_BYTES = 320 * 200 * 4;
 const historyDir = async () => (await navigator.storage.getDirectory()).getDirectoryHandle("history", { create: true });
 let archiveChain = Promise.resolve();
 let archived = "";
+let pauseHint = "";
+function formatPauseHint(raw) {
+  const msg = String(raw ?? "").trim();
+  if (/quota|storage|space|disk/i.test(msg)) {
+    return "Paused: browser storage quota was reached. Click 'Delete all' under Playback → Your runs (or Export run) to free disk space, then click Run to resume.";
+  }
+  if (/memory|allocation|oom|out of memory|unreachable/i.test(msg)) {
+    return "Paused: browser tab reached its WebAssembly memory limit. Refresh this page and click Run to resume from the last saved checkpoint.";
+  }
+  const first = msg.split("\n")[0].replace(/^Error:\s*/i, "");
+  return first
+    ? `Paused (${first}) — click Run on the right to resume from the last saved checkpoint.`
+    : "";
+}
 const deleted = new Set();  // runs the user deleted: never saved again, even when they finish
 function archiveRun(status) {
   if (!runKey || !frames.length || deleted.has(runKey)) return;
@@ -1278,6 +1298,10 @@ function archiveRun(status) {
       if (!document.getElementById("playbackTab").hidden) refreshPast();
     } catch (e) {
       console.error("auto-save failed", e);
+      if (!checking && (/quota/i.test(String(e?.name ?? "")) || /quota/i.test(String(e?.message ?? e)))) {
+        pauseHint = formatPauseHint(e?.message ?? e?.name ?? "QuotaExceededError");
+        drawHud();
+      }
     }
   });
 }
@@ -1418,6 +1442,7 @@ document.getElementById("pastDelAllBtn").addEventListener("click", async () => {
 // A new run, or (with `saved`, from restoreRun) the run a reload interrupted:
 // its frames are already on screen and the worker continues from its checkpoint.
 function execute(script, saved) {
+  pauseHint = "";
   if (runStatus) archiveRun(runStatus === "checking" ? "stopped" : runStatus);
   worker?.terminate();
   runKey = saved?.runId ?? crypto.randomUUID();
@@ -1439,7 +1464,7 @@ function execute(script, saved) {
   stageText = saved ? "resuming from checkpoint" : "loading the checker";
   runT0 = performance.now() - (saved?.elapsedMs ?? 0);
   scrub.max = String(Math.max(0, frames.length - 1));
-  worker = new Worker("checker-worker.js?v=7", { type: "module" });
+  worker = new Worker("checker-worker.js?v=8", { type: "module" });
   worker.onmessage = ({ data: m }) => {
     if (m.kind === "status") {
       if (m.text.startsWith("tsc ")) {
@@ -1505,7 +1530,8 @@ function execute(script, saved) {
     // drive.ts gave up on a chunk: the run stopped early, it did not finish.
     checking = false;
     stageText = "";
-    progress = `checker failed after ${frames.length} frames`;
+      progress = `checker failed after ${frames.length} frames`;
+      pauseHint = formatPauseHint(m.result.failed);
     playing = false;
     playBtn.textContent = "Play";
     drawFrame(frames.length - 1);
@@ -1523,8 +1549,9 @@ function execute(script, saved) {
   } else if (m.kind === "error") {
     checking = false;
     stageText = "";
-    progress = "checker error";
-    archiveRun(runStatus = "failed");
+      progress = "checker error";
+      pauseHint = formatPauseHint(m.text);
+      archiveRun(runStatus = "failed");
     console.error(m.text);
     showToast(m.text.split("\n")[0]);
     if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
@@ -1909,12 +1936,13 @@ function updateLiveStatus(elapsed) {
       ? `PAUSED / STOPPED AFTER ${frames.length} OF ${total} FRAMES`
       : `READY TO RECORD IN THE TYPESCRIPT TYPE CHECKER`;
     liveBadge.textContent = `${frames.length} / ${total} frames`;
-    liveSubText.textContent = `Click Run on the right to ${frames.length ? "resume type-checking from the last saved checkpoint" : "start type-checking Frame 1"}.`;
-    overlayPillText.textContent = runStatus === "failed" ? "TYPE-CHECKER STOPPED" : "READY TO RUN";
-    overlayTitle.textContent = runStatus === "failed"
-      ? `Type-checker stopped before Frame 1 finished (${progress})`
-      : `Click "Run" on the right to start type-checking Frame 1 of ${total}`;
-    overlaySub.textContent = `Each frame is evaluated live by the TypeScript compiler (~35–70 chunks per frame).`;
+      liveSubText.textContent =
+        pauseHint || `Click Run on the right to ${frames.length ? "resume type-checking from the last saved checkpoint" : "start type-checking Frame 1"}.`;
+      overlayPillText.textContent = runStatus === "failed" ? "TYPE-CHECKER STOPPED" : "READY TO RUN";
+      overlayTitle.textContent = runStatus === "failed"
+        ? `Type-checker stopped before Frame 1 finished (${progress})`
+        : `Click "Run" on the right to start type-checking Frame 1 of ${total}`;
+      overlaySub.textContent = pauseHint || "Each frame is evaluated live by the TypeScript compiler (~35-70 chunks per frame).";
   }
   overlay.hidden = frames.length > 0;
   hud.hidden = frames.length === 0;
