@@ -421,34 +421,12 @@
     color: var(--muted);
     line-height: 1.35;
   }
-  .tsc-stack-row, .tsc-vars-row, .tsc-slide-tabs {
+  .tsc-vars-row, .tsc-slide-tabs {
     display: flex;
     align-items: center;
     gap: 4px;
     flex-wrap: wrap;
     font-size: 11px;
-  }
-  .tsc-stack-pill {
-    padding: 1px 6px;
-    border-radius: 3px;
-    background: #17191e;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    cursor: pointer;
-  }
-  .tsc-stack-pill:hover {
-    color: #fff;
-    border-color: #4a5160;
-  }
-  .tsc-stack-pill.head {
-    color: var(--fg);
-    border-color: #3b4252;
-    background: #1c2028;
-  }
-  .tsc-stack-arrow {
-    color: var(--muted);
-    opacity: 0.55;
-    font-size: 10px;
   }
   .tsc-var-pill {
     padding: 1px 5px;
@@ -1750,10 +1728,8 @@ function execute(script, saved) {
       tscInspection = m.inspection;
       tscSlideIdx = 0;
     }
-    if (m.midRgba) {
-      tscMidRgba = new Uint32Array(m.midRgba.buffer);
-    }
     if (m.kind === "inspected") {
+      tscMidFrame = !m.done && (m.chunks > 0 || frames.length > 0);
       if (m.chunks > 0) curChunk = m.chunks;
       updateTscSlideshow();
       updateEditorStatusDecorations();
@@ -1808,6 +1784,7 @@ function execute(script, saved) {
       updateEditorStatusDecorations();
     } else if (m.kind === "progress") {
       curChunk = m.chunks;
+      tscMidFrame = true;
       stageText = "";
       const target = Math.max(estChunks, curChunk + 2);
       progress = `frame ${m.index + 1}: chunk ${m.chunks} of ~${target} checked`;
@@ -1818,9 +1795,8 @@ function execute(script, saved) {
       frameAt[m.index] = m.ms;
       if (m.chunks > 0) estChunks = m.chunks;
       curChunk = 0;
+      tscMidFrame = false;
       stageText = "";
-      tscMidRgba = null;
-      tscShowMidOnMain = false;
       progress = `frame ${m.index + 1} checked in ${m.chunks} chunks`;
       scrub.max = String(frames.length - 1);
       // Follow the newest frame unless the user is scrubbing back.
@@ -1851,9 +1827,8 @@ function execute(script, saved) {
     } else if (m.kind === "end") {
       checking = false;
       curChunk = 0;
+      tscMidFrame = false;
       stageText = "";
-      tscMidRgba = null;
-      tscShowMidOnMain = false;
       progress = `done: ${frames.length} frames in ${fmtTime(m.result.ms)}`;
       archiveRun(runStatus = "finished");
       if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
@@ -2332,13 +2307,10 @@ function renderRgba320x200ToMain(src) {
 }
 
 function drawFrame(idx) {
-  if (!frames.length) {
-    if (tscShowMidOnMain && tscMidRgba) renderRgba320x200ToMain(tscMidRgba);
-    return drawHud();
-  }
+  if (!frames.length) return drawHud();
   cur = Math.max(0, Math.min(frames.length - 1, idx));
   // a kept frame still being read back from OPFS
-  const src = (tscShowMidOnMain && tscMidRgba) ? tscMidRgba : frames[cur];
+  const src = frames[cur];
   if (src) {
     renderRgba320x200ToMain(src);
   } else {
@@ -2346,9 +2318,7 @@ function drawFrame(idx) {
     ctx.putImageData(img, 0, 0);
   }
   scrub.value = String(cur);
-  frameLabel.textContent = tscShowMidOnMain && tscMidRgba
-    ? `${frames.length + 1} (mid-chunk) / ${frames.length}`
-    : `${cur + 1} / ${frames.length}`;
+  frameLabel.textContent = `${cur + 1} / ${frames.length}`;
   drawHud();
   updateEditorCurDecoration();
 }
@@ -2935,10 +2905,9 @@ function showRestored(run) {
 // --- Live tsc Type-Check Slideshow & Monaco In-Code Playback ---
 let tscInspection = null;
 let tscBootInspection = null;
-let tscMidRgba = null;
+let tscMidFrame = false;
 let tscSlideIdx = 0;
 let tscSlideAuto = true;
-let tscShowMidOnMain = false;
 
 const tscSlideDotEl = document.getElementById("tscSlideDot");
 const tscSlideFnBadgeEl = document.getElementById("tscSlideFnBadge");
@@ -2947,20 +2916,11 @@ const tscSlidePrevBtn = document.getElementById("tscSlidePrevBtn");
 const tscSlideNextBtn = document.getElementById("tscSlideNextBtn");
 const tscSlideAutoBtn = document.getElementById("tscSlideAutoBtn");
 const tscSlideSubEl = document.getElementById("tscSlideSub");
-const tscStackRowEl = document.getElementById("tscStackRow");
 const tscVarsRowEl = document.getElementById("tscVarsRow");
 const tscSlideTabsEl = document.getElementById("tscSlideTabs");
 const tscCodeHeaderEl = document.getElementById("tscCodeHeader");
 const tscCodeLinesEl = document.getElementById("tscCodeLines");
 const tscSlideCodeEl = document.getElementById("tscSlideCode");
-const tscMidWrapEl = document.getElementById("tscMidWrap");
-const tscMidTitleEl = document.getElementById("tscMidTitle");
-const tscMidCanvasEl = document.getElementById("tscMidCanvas");
-const tscMidHintEl = document.getElementById("tscMidHint");
-const tscMidCtx = tscMidCanvasEl ? tscMidCanvasEl.getContext("2d") : null;
-const tscMidImg = tscMidCtx ? tscMidCtx.createImageData(320, 200) : null;
-const tscMidU32 = tscMidImg ? new Uint32Array(tscMidImg.data.buffer) : null;
-
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -3007,12 +2967,11 @@ function updateTscSlideshow() {
     const target = Math.max(estChunks, curChunk + 1);
     if (checking) {
       tscSlideSubEl.textContent = `Frame ${frames.length + 1} · chunk ${curChunk || 1}/~${target}${lastTscText ? ` (${lastTscText})` : stageText ? ` (${stageText})` : ""} — evaluating ${insp.fnName}() at basic block $b${insp.headBlock}`;
-    } else if (tscMidRgba) {
+    } else if (tscMidFrame) {
       tscSlideSubEl.textContent = `Checkpoint at Frame ${frames.length + 1} (chunk ${curChunk || 1}, inside ${insp.fnName}() $b${insp.headBlock}). Click any CFG block tab or editor tic line.`;
     } else {
       tscSlideSubEl.textContent = `Inspecting ${insp.fnName}() ($b${insp.headBlock}) in doom-keys.cfg.ts. Hover or click any tic line in the TypeScript editor below to preview its frame.`;
     }
-
     // Render globals & locals
     const vars = [...(insp.globals || []), ...(insp.locals || []).slice(0, 6)];
     tscVarsRowEl.innerHTML = vars.map((v) => (
@@ -3070,12 +3029,12 @@ function requestIdleInspection() {
     if (m.kind === "inspected") {
       if (m.bootInspection) tscBootInspection = m.bootInspection;
       if (m.inspection) tscInspection = m.inspection;
-      if (m.midRgba) tscMidRgba = new Uint32Array(m.midRgba.buffer);
+      tscMidFrame = !m.done && (m.chunks > 0 || frames.length > 0);
       if (m.chunks > 0 && !curChunk) curChunk = m.chunks;
       updateTscSlideshow();
       updateEditorStatusDecorations();
-      w.terminate();
     }
+    w.terminate();
   };
   w.postMessage({ inspectOnly: true, tabId: TAB_ID });
 }
@@ -3328,7 +3287,7 @@ function updateEditorStatusDecorations() {
           },
         },
       });
-    } else if ((checking || tscMidRgba) && doneCount >= e.startFrame && doneCount <= e.endFrame) {
+    } else if ((checking || tscMidFrame) && doneCount >= e.startFrame && doneCount <= e.endFrame) {
       checkingLine = e.lineNum;
       const target = Math.max(estChunks, curChunk + 1);
       const fnTag = (tscInspection || tscBootInspection)?.fnName ? ` · ${(tscInspection || tscBootInspection).fnName}()` : "";
@@ -3389,7 +3348,7 @@ monacoEditor.onMouseMove((e) => {
   }
   const doneCount = frames.length;
   const isRendered = entry.startFrame < doneCount;
-  const isCheckingNow = (checking || tscMidRgba) && doneCount >= entry.startFrame && doneCount <= entry.endFrame;
+  const isCheckingNow = (checking || tscMidFrame) && doneCount >= entry.startFrame && doneCount <= entry.endFrame;
   const previewFrameIdx = isRendered
     ? (cur >= entry.startFrame && cur <= entry.endFrame ? cur : Math.min(entry.endFrame, doneCount - 1))
     : Math.max(0, doneCount - 1);
@@ -3414,12 +3373,9 @@ monacoEditor.onMouseMove((e) => {
   const msInfo = isRendered && frameAt[previewFrameIdx] ? ` · ${(frameAt[previewFrameIdx] / 1000).toFixed(1)}s` : "";
   estMeta.textContent = `Input: ${lbl}${msInfo}`;
 
-  const rgbaToDraw = (isCheckingNow && tscMidRgba && !frames[entry.startFrame])
-    ? tscMidRgba
-    : (isRendered && frames[previewFrameIdx])
-      ? frames[previewFrameIdx]
-      : (tscMidRgba || (doneCount > 0 ? frames[doneCount - 1] : null));
-
+  const rgbaToDraw = isRendered && frames[previewFrameIdx]
+    ? frames[previewFrameIdx]
+    : (doneCount > 0 ? frames[doneCount - 1] : null);
   if (rgbaToDraw) {
     editorTooltipCanvas.hidden = false;
     drawRgbaToSmallCanvas(rgbaToDraw, estCtx, estImg, estU32);
@@ -3431,7 +3387,7 @@ monacoEditor.onMouseMove((e) => {
     estSub.textContent = `Showing Frame ${previewFrameIdx + 1}. Click this line in the editor to jump playback here.`;
   } else if (isCheckingNow) {
     const fnName = (tscInspection || tscBootInspection)?.fnName || "entry";
-    estSub.textContent = `TypeScript is at chunk ${curChunk || 1} inside ${fnName}() — previewing live mid-chunk Wasm RAM.`;
+    estSub.textContent = `TypeScript is at chunk ${curChunk || 1} inside ${fnName}()${doneCount > 0 ? ` (showing Frame ${doneCount})` : ""}.`;
   } else {
     estSub.textContent = `Queued (${entry.startFrame - doneCount + 1} tics after checkpoint Frame ${doneCount}).`;
   }
@@ -3457,7 +3413,6 @@ monacoEditor.onMouseDown((e) => {
   const entry = lineSteps.get(pos.lineNumber);
   if (!entry) return;
   if (entry.startFrame < frames.length) {
-    tscShowMidOnMain = false;
     playing = false;
     playBtn.textContent = "Play";
     const targetFrame = (cur >= entry.startFrame && cur < Math.min(entry.endFrame, frames.length - 1))
@@ -3466,12 +3421,10 @@ monacoEditor.onMouseDown((e) => {
     drawFrame(targetFrame);
     doomAudio.syncBgm();
     doomAudio.onFrame(cur, labels[cur] || "");
-  } else if (tscMidRgba && frames.length >= entry.startFrame && frames.length <= entry.endFrame) {
-    tscShowMidOnMain = true;
+  } else if (frames.length > 0 && frames.length >= entry.startFrame && frames.length <= entry.endFrame) {
     playing = false;
     playBtn.textContent = "Play";
-    renderRgba320x200ToMain(tscMidRgba);
-    updateTscSlideshow();
+    drawFrame(frames.length - 1);
   }
 });
 
