@@ -719,8 +719,8 @@
         <div id="tscSlideTabs" class="tsc-slide-tabs"></div>
       <div class="tsc-code-wrap">
         <div class="tsc-code-meta">
-          <span id="tscSlideCodeHeader">doom-keys.cfg.ts</span>
-          <span id="tscSlideCodeLines" class="meta"></span>
+          <span id="tscCodeHeader">doom-keys.cfg.ts</span>
+          <span id="tscCodeLines" class="meta"></span>
         </div>
         <pre id="tscSlideCode" class="tsc-slide-code">Loading TypeScript CFG type definitions from doom-keys.cfg.ts...</pre>
       </div>
@@ -2987,11 +2987,11 @@ function renderActiveTscSlide() {
   if (tscSlideIdx >= slides.length) tscSlideIdx = 0;
   if (tscSlideIdx < 0) tscSlideIdx = slides.length - 1;
   const s = slides[tscSlideIdx];
-  tscSlideCountEl.textContent = `${tscSlideIdx + 1} / ${slides.length}`;
-  tscCodeHeaderEl.textContent = `doom-keys.cfg.ts · ${s.fnName}() · ${s.declName}`;
-  tscCodeLinesEl.textContent = `lines ${s.startLine.toLocaleString()}–${s.endLine.toLocaleString()}`;
-  tscSlideCodeEl.innerHTML = highlightCfgCode(s.code);
-  const tabBtns = tscSlideTabsEl.querySelectorAll(".tsc-slide-tab");
+  if (tscSlideCountEl) tscSlideCountEl.textContent = `${tscSlideIdx + 1} / ${slides.length}`;
+  if (tscCodeHeaderEl) tscCodeHeaderEl.textContent = `doom-keys.cfg.ts · ${s.fnName}() · ${s.declName}`;
+  if (tscCodeLinesEl) tscCodeLinesEl.textContent = `lines ${s.startLine.toLocaleString()}–${s.endLine.toLocaleString()}`;
+  if (tscSlideCodeEl) tscSlideCodeEl.innerHTML = highlightCfgCode(s.code);
+  const tabBtns = tscSlideTabsEl ? tscSlideTabsEl.querySelectorAll(".tsc-slide-tab") : [];
   tabBtns.forEach((btn, i) => btn.classList.toggle("active", i === tscSlideIdx));
 }
 
