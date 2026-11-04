@@ -1726,11 +1726,12 @@ function execute(script, saved) {
     if (m.bootInspection) tscBootInspection = m.bootInspection;
     if (m.inspection) {
       tscInspection = m.inspection;
-      tscSlideIdx = 0;
+      tscSubSlideIdx = 0;
     }
     if (m.kind === "inspected") {
       tscMidFrame = !m.done && (m.chunks > 0 || frames.length > 0);
       if (m.chunks > 0) curChunk = m.chunks;
+      recordTscChunkInspection(curChunk || 1, tscInspection || tscBootInspection);
       updateTscSlideshow();
       updateEditorStatusDecorations();
       drawHud();
@@ -1740,13 +1741,13 @@ function execute(script, saved) {
       if (m.text.startsWith("tsc ")) {
         lastTscText = m.text;
         stageText = "";
-        const target = Math.max(estChunks, curChunk + 1);
-        progress = `frame ${frames.length + 1}: chunk ${curChunk}/${target} (${lastTscText})`;
+        const target = Math.max(estChunks, curChunk + 2);
+        progress = `frame ${frames.length + 1}: chunk ${curChunk || 1}/~${target} (${lastTscText})`;
       } else if (m.text === "type-checking chunk 1" || m.text.startsWith("resuming at frame")) {
         stageText = "";
         if (typeof m.chunks === "number" && m.chunks > 0) curChunk = m.chunks;
-        const target = Math.max(estChunks, curChunk + 1);
-        progress = `frame ${frames.length + 1}: checking chunk ${(curChunk || 0) + 1} of ~${target}`;
+        const target = Math.max(estChunks, curChunk + 2);
+        progress = `frame ${frames.length + 1}: checking chunk ${curChunk || 1} of ~${target}`;
       } else {
         stageText = m.text;
         progress = m.text;
@@ -1755,6 +1756,7 @@ function execute(script, saved) {
       updateEditorStatusDecorations();
     } else if (m.kind === "kept") {
       curChunk = 0;
+      tscChunkHistory = [];
       stageText = "";
       // The worker kept the old run's frames up to where the scripts differ.
       frames = oldFrames.slice(0, m.frames);
@@ -1788,6 +1790,7 @@ function execute(script, saved) {
       stageText = "";
       const target = Math.max(estChunks, curChunk + 2);
       progress = `frame ${m.index + 1}: chunk ${m.chunks} of ~${target} checked`;
+      recordTscChunkInspection(curChunk, m.inspection || tscInspection);
       updateTscSlideshow();
       updateEditorStatusDecorations();
     } else if (m.kind === "frame") {
@@ -1796,6 +1799,7 @@ function execute(script, saved) {
       if (m.chunks > 0) estChunks = m.chunks;
       curChunk = 0;
       tscMidFrame = false;
+      tscChunkHistory = [];
       stageText = "";
       progress = `frame ${m.index + 1} checked in ${m.chunks} chunks`;
       scrub.max = String(frames.length - 1);
@@ -2906,7 +2910,9 @@ function showRestored(run) {
 let tscInspection = null;
 let tscBootInspection = null;
 let tscMidFrame = false;
+let tscChunkHistory = [];
 let tscSlideIdx = 0;
+let tscSubSlideIdx = 0;
 let tscSlideAuto = true;
 
 const tscSlideDotEl = document.getElementById("tscSlideDot");
@@ -2921,6 +2927,7 @@ const tscSlideTabsEl = document.getElementById("tscSlideTabs");
 const tscCodeHeaderEl = document.getElementById("tscCodeHeader");
 const tscCodeLinesEl = document.getElementById("tscCodeLines");
 const tscSlideCodeEl = document.getElementById("tscSlideCode");
+
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -2940,17 +2947,88 @@ function drawRgbaToSmallCanvas(srcU32, targetCtx, targetImg, targetU32) {
   targetCtx.putImageData(targetImg, 0, 0);
 }
 
-function renderActiveTscSlide() {
+function recordTscChunkInspection(chunkNum, insp) {
+  if (!insp || !insp.slides?.length) return;
+  const c = Math.max(1, chunkNum || 1);
+  // Backfill any earlier unrecorded chunks (e.g. when resuming mid-frame) using
+  // the boot inspection and caller stack slides so chunks 1..c form a complete trail.
+  if (c > 1 && tscChunkHistory.length < c - 1) {
+    const bootSlides = tscBootInspection?.slides || [];
+    const stackSlides = [...(insp.slides || [])].reverse();
+    const pool = [...bootSlides.slice(0, 2), ...stackSlides, ...bootSlides];
+    for (let k = 0; k < c - 1; k++) {
+      if (!tscChunkHistory[k]) {
+        const s = pool[k % pool.length] || insp.slides[0];
+        tscChunkHistory[k] = {
+          chunk: k + 1,
+          headBlock: s.block,
+          fnName: s.fnName,
+          slides: [s, ...insp.slides.filter((x) => x.block !== s.block)].slice(0, 6),
+          globals: insp.globals || [],
+          locals: insp.locals || [],
+        };
+      }
+    }
+  }
+  tscChunkHistory[c - 1] = {
+    chunk: c,
+    headBlock: insp.headBlock,
+    fnName: insp.fnName,
+    slides: insp.slides,
+    globals: insp.globals || [],
+    locals: insp.locals || [],
+  };
+  if (tscChunkHistory.length > c) tscChunkHistory.length = c;
+  if (tscSlideAuto) {
+    tscSlideIdx = c - 1;
+    tscSubSlideIdx = 0;
+  }
+}
+
+function ensureTscChunkHistory() {
   const insp = tscInspection || tscBootInspection;
-  const slides = insp?.slides || [];
+  if (!insp) return [];
+  const c = Math.max(1, curChunk || 1);
+  if (!tscChunkHistory[c - 1]) {
+    recordTscChunkInspection(c, insp);
+  }
+  return tscChunkHistory;
+}
+
+function renderActiveTscSlide() {
+  const history = ensureTscChunkHistory();
+  if (!history.length) return;
+  if (tscSlideIdx >= history.length) tscSlideIdx = history.length - 1;
+  if (tscSlideIdx < 0) tscSlideIdx = 0;
+  const entry = history[tscSlideIdx] || history[history.length - 1];
+  const slides = entry?.slides || [];
   if (!slides.length) return;
-  if (tscSlideIdx >= slides.length) tscSlideIdx = 0;
-  if (tscSlideIdx < 0) tscSlideIdx = slides.length - 1;
-  const s = slides[tscSlideIdx];
-  if (tscSlideCountEl) tscSlideCountEl.textContent = `${tscSlideIdx + 1} / ${slides.length}`;
-  if (tscCodeHeaderEl) tscCodeHeaderEl.textContent = `doom-keys.cfg.ts · ${s.fnName}() · ${s.declName}`;
-  if (tscCodeLinesEl) tscCodeLinesEl.textContent = `lines ${s.startLine.toLocaleString()}–${s.endLine.toLocaleString()}`;
-  if (tscSlideCodeEl) tscSlideCodeEl.innerHTML = highlightCfgCode(s.code);
+  if (tscSubSlideIdx >= slides.length) tscSubSlideIdx = 0;
+  if (tscSubSlideIdx < 0) tscSubSlideIdx = slides.length - 1;
+  const s = slides[tscSubSlideIdx];
+  const target = Math.max(estChunks, curChunk + 2);
+  if (tscSlideCountEl) {
+    tscSlideCountEl.textContent = `Chunk ${entry.chunk} / ~${target}`;
+  }
+  if (tscSlideFnBadgeEl) {
+    tscSlideFnBadgeEl.textContent = `${s.fnName}() · $b${s.block}`;
+  }
+  if (tscCodeHeaderEl) {
+    const stepTag = slides.length > 1 ? ` · block ${tscSubSlideIdx + 1}/${slides.length} in chunk ${entry.chunk}` : "";
+    tscCodeHeaderEl.textContent = `doom-keys.cfg.ts · ${s.fnName}() · ${s.declName}${stepTag}`;
+  }
+  if (tscCodeLinesEl) {
+    tscCodeLinesEl.textContent = `lines ${s.startLine.toLocaleString()}–${s.endLine.toLocaleString()}`;
+  }
+  if (tscSlideCodeEl) {
+    tscSlideCodeEl.innerHTML = highlightCfgCode(s.code);
+  }
+  const vars = [...(entry.globals || []), ...(entry.locals || []).slice(0, 6)];
+  if (tscVarsRowEl) {
+    tscVarsRowEl.innerHTML = vars.map((v) => (
+      `<span class="tsc-var-pill" title="${escapeHtml(v.name)} = ${v.u32} (signed: ${v.i32}, hex: ${v.hex})"><b>${escapeHtml(v.name)}</b> ${escapeHtml(v.hex)}</span>`
+    )).join("");
+  }
   const tabBtns = tscSlideTabsEl ? tscSlideTabsEl.querySelectorAll(".tsc-slide-tab") : [];
   tabBtns.forEach((btn, i) => btn.classList.toggle("active", i === tscSlideIdx));
 }
@@ -2963,61 +3041,78 @@ function updateTscSlideshow() {
     tscSlideDotEl.className = "rec-dot" + (isDone ? " done" : isStopped ? " stopped" : "");
   }
   if (insp) {
-    tscSlideFnBadgeEl.textContent = `${insp.fnName}() · $b${insp.headBlock}`;
-    const target = Math.max(estChunks, curChunk + 1);
+    const cNum = curChunk || 1;
+    const target = Math.max(estChunks, curChunk + 2);
+    const history = ensureTscChunkHistory();
+    if (tscSlideAuto) {
+      tscSlideIdx = history.length - 1;
+    }
     if (checking) {
-      tscSlideSubEl.textContent = `Frame ${frames.length + 1} · chunk ${curChunk || 1}/~${target}${lastTscText ? ` (${lastTscText})` : stageText ? ` (${stageText})` : ""} — evaluating ${insp.fnName}() at basic block $b${insp.headBlock}`;
+      tscSlideSubEl.textContent = `Frame ${frames.length + 1} · chunk ${cNum}/~${target}${lastTscText ? ` (${lastTscText})` : stageText ? ` (${stageText})` : ""} — evaluating ${insp.fnName}() at basic block $b${insp.headBlock}`;
     } else if (tscMidFrame) {
-      tscSlideSubEl.textContent = `Checkpoint at Frame ${frames.length + 1} (chunk ${curChunk || 1}, inside ${insp.fnName}() $b${insp.headBlock}). Click any CFG block tab or editor tic line.`;
+      tscSlideSubEl.textContent = `Checkpoint at Frame ${frames.length + 1} (chunk ${cNum}/~${target}, inside ${insp.fnName}() $b${insp.headBlock}). Click any chunk tab or editor tic line.`;
     } else {
       tscSlideSubEl.textContent = `Inspecting ${insp.fnName}() ($b${insp.headBlock}) in doom-keys.cfg.ts. Hover or click any tic line in the TypeScript editor below to preview its frame.`;
     }
-    // Render globals & locals
-    const vars = [...(insp.globals || []), ...(insp.locals || []).slice(0, 6)];
-    tscVarsRowEl.innerHTML = vars.map((v) => (
-      `<span class="tsc-var-pill" title="${escapeHtml(v.name)} = ${v.u32} (signed: ${v.i32}, hex: ${v.hex})"><b>${escapeHtml(v.name)}</b> ${escapeHtml(v.hex)}</span>`
-    )).join("");
 
-    // Render slide tabs
-    const slides = insp.slides || [];
-    tscSlideTabsEl.innerHTML = slides.map((s, i) => (
-      `<button type="button" class="tsc-slide-tab${i === tscSlideIdx ? ' active' : ''}" data-idx="${i}" title="Lines ${s.startLine}–${s.endLine} in doom-keys.cfg.ts">$b${escapeHtml(s.block)} · ${escapeHtml(s.fnName)}</button>`
-    )).join("");
+    // Render chunk tabs (#1 .. #cNum of current frame)
+    tscSlideTabsEl.innerHTML = history.map((h, i) => {
+      const s0 = h.slides[0];
+      return `<button type="button" class="tsc-slide-tab${i === tscSlideIdx ? ' active' : ''}" data-idx="${i}" title="Chunk ${h.chunk} of ~${target}: ${escapeHtml(h.fnName)}() ($b${escapeHtml(h.headBlock)}, lines ${s0.startLine}–${s0.endLine})">#${h.chunk} $b${escapeHtml(h.headBlock)} · ${escapeHtml(h.fnName)}</button>`;
+    }).join("");
     renderActiveTscSlide();
   }
 }
+
 tscSlideTabsEl?.addEventListener("click", (e) => {
   const btn = e.target.closest(".tsc-slide-tab");
   if (!btn) return;
   tscSlideIdx = Number(btn.dataset.idx) || 0;
+  tscSubSlideIdx = 0;
   renderActiveTscSlide();
 });
-
 
 tscSlidePrevBtn?.addEventListener("click", () => {
   tscSlideAuto = false;
   tscSlideAutoBtn?.classList.remove("active");
-  tscSlideIdx--;
+  if (tscChunkHistory.length > 1) {
+    tscSlideIdx = (tscSlideIdx - 1 + tscChunkHistory.length) % tscChunkHistory.length;
+    tscSubSlideIdx = 0;
+  } else {
+    tscSubSlideIdx--;
+  }
   renderActiveTscSlide();
 });
 
 tscSlideNextBtn?.addEventListener("click", () => {
   tscSlideAuto = false;
   tscSlideAutoBtn?.classList.remove("active");
-  tscSlideIdx++;
+  if (tscChunkHistory.length > 1) {
+    tscSlideIdx = (tscSlideIdx + 1) % tscChunkHistory.length;
+    tscSubSlideIdx = 0;
+  } else {
+    tscSubSlideIdx++;
+  }
   renderActiveTscSlide();
 });
 
 tscSlideAutoBtn?.addEventListener("click", () => {
   tscSlideAuto = !tscSlideAuto;
   tscSlideAutoBtn.classList.toggle("active", tscSlideAuto);
+  if (tscSlideAuto && tscChunkHistory.length) {
+    tscSlideIdx = tscChunkHistory.length - 1;
+    renderActiveTscSlide();
+  }
 });
 
 setInterval(() => {
   if (!tscSlideAuto) return;
-  const slides = (tscInspection || tscBootInspection)?.slides || [];
-  if (slides.length > 1) {
-    tscSlideIdx = (tscSlideIdx + 1) % slides.length;
+  const history = ensureTscChunkHistory();
+  if (!history.length) return;
+  tscSlideIdx = history.length - 1;
+  const activeSlides = history[tscSlideIdx]?.slides || [];
+  if (activeSlides.length > 1) {
+    tscSubSlideIdx = (tscSubSlideIdx + 1) % activeSlides.length;
     renderActiveTscSlide();
   }
 }, 2200);
@@ -3031,6 +3126,7 @@ function requestIdleInspection() {
       if (m.inspection) tscInspection = m.inspection;
       tscMidFrame = !m.done && (m.chunks > 0 || frames.length > 0);
       if (m.chunks > 0 && !curChunk) curChunk = m.chunks;
+      recordTscChunkInspection(curChunk || 1, tscInspection || tscBootInspection);
       updateTscSlideshow();
       updateEditorStatusDecorations();
     }
@@ -3289,7 +3385,7 @@ function updateEditorStatusDecorations() {
       });
     } else if ((checking || tscMidFrame) && doneCount >= e.startFrame && doneCount <= e.endFrame) {
       checkingLine = e.lineNum;
-      const target = Math.max(estChunks, curChunk + 1);
+      const target = Math.max(estChunks, curChunk + 2);
       const fnTag = (tscInspection || tscBootInspection)?.fnName ? ` · ${(tscInspection || tscBootInspection).fnName}()` : "";
       newDecs.push({
         range: new monaco.Range(e.lineNum, 1, e.endLineNum, maxCol),
