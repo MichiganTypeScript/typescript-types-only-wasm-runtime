@@ -13,15 +13,16 @@
 //      { kind: "frame", index, rgba, chunks, ms }  frame `index` finished
 //      { kind: "kept", frames }                    frames 0 to frames-1 are the saved run's
 //      { kind: "log", text } | { kind: "end", result } | { kind: "error", text }
-import { start, moduleShape, rgbaFrom } from "./run.browser.js?v=6";
+import { start, moduleShape, rgbaFrom, inspectCheckpoint } from "./run.browser.js?v=9";
 import * as tsrs from "./tsrs/browser.js";
 import * as tsgo from "./tsgo/tsgo.js?v=5";
 import * as tsgoDoom from "./tsgo/tsgo-doom.js?v=5";
 
+const tsgoDoomWasmUrl = new URL("./tsgo/tsgo-doom.wasm.gz?v=2.gz", import.meta.url);
 const CHECKERS = {
-  "tsgo-doom": { label: "tsgo-doom", load: () => tsgoDoom.loadModule(), tsc: (args, o) => tsgoDoom.tsc(args, o) },
-  teamchong: { label: "tsgo-doom", load: () => tsgoDoom.loadModule(), tsc: (args, o) => tsgoDoom.tsc(args, o) },
-  ts7: { label: "tsgo", load: () => tsgo.loadModule(), tsc: (args, o) => tsgo.tsc(args, o) },
+  "tsgo-doom": { label: "tsgo-doom", load: () => tsgoDoom.loadModule(tsgoDoomWasmUrl), tsc: (args, o) => tsgoDoom.tsc(args, o) },
+  teamchong: { label: "tsgo-doom", load: () => tsgoDoom.loadModule(tsgoDoomWasmUrl), tsc: (args, o) => tsgoDoom.tsc(args, o) },
+  "ts?": { label: "tsgo", load: () => tsgo.loadModule(), tsc: (args, o) => tsgo.tsc(args, o) },
   tsrs: { label: "tsrs", load: () => tsrs.loadModule(new URL("./tsrs/tsrs.wasm", import.meta.url)), tsc: (args, o) => tsrs.tsc(args, { ...o, stackSizeMb: 1024 }) },
 };
 
@@ -278,8 +279,8 @@ const saveFrame = (n, rgba) => {
 };
 
 // A .gz is stored gzipped, not served with Content-Encoding, so inflate it here.
-const text = async (url, label) => {
-  post({ kind: "status", text: `fetching ${label}` });
+const text = async (url, label, silent = false) => {
+  if (!silent) post({ kind: "status", text: `fetching ${label}` });
   const r = await fetch(url);
   if (!r.ok) throw new Error(`${url}: ${r.status}`);
   if (url.endsWith(".gz")) return new Response(r.body.pipeThrough(new DecompressionStream("gzip"))).text();
@@ -287,14 +288,22 @@ const text = async (url, label) => {
 };
 
 let assets;
-const load = async () => {
+const load = async (silent = false) => {
   assets ??= (async () => {
     const [moduleText, lib, resume] = await Promise.all([
-      text("data/doom-keys.cfg.ts.gz", "doom-keys.cfg.ts (Doom as TypeScript types)"),
-      text("data/lib.json", "ts-type-math"),
-      text("data/menu-boot.json", "skill-menu checkpoint"),
+      text("data/doom-keys.cfg.ts.gz", "doom-keys.cfg.ts (Doom as TypeScript types)", silent),
+      text("data/lib.json", "ts-type-math", silent),
+      text("data/menu-boot.json", "skill-menu checkpoint", silent),
     ]);
-    return { moduleText, libFiles: JSON.parse(lib), resume: JSON.parse(resume), shape: moduleShape(moduleText) };
+    const parsedResume = JSON.parse(resume);
+    const shape = moduleShape(moduleText);
+    return {
+      moduleText,
+      libFiles: JSON.parse(lib),
+      resume: parsedResume,
+      shape,
+      bootInspection: inspectCheckpoint(shape, parsedResume),
+    };
   })();
   return assets;
 };
@@ -312,6 +321,31 @@ self.onmessage = async ({ data }) => {
     let boundsIndex = [];
     let baseMs = 0;
     const readSavedMeta = async () => JSON.parse((await readText(metaName)) ?? (await readText("meta.json")) ?? "null");
+    if (data.inspectOnly) {
+      const a = await load(true);
+      let pt = data.point ?? null;
+      if (!pt) {
+        const saved = await readSavedMeta();
+        const ckpt = saved ? await readCheckpoint(saved.files ?? saved.runId) : null;
+        pt = ckpt?.point ?? null;
+      }
+      const hasCkpt = !!pt;
+      pt ??= a.resume;
+      const inspection = inspectCheckpoint(a.shape, pt);
+      const midRgba = !pt?.done && pt?.memory ? rgbaFrom(a.shape, pt.memory) : null;
+      return post(
+        {
+          kind: "inspected",
+          index: hasCkpt ? (pt.scriptFrame ?? 0) + (pt.done ? 1 : 0) : 0,
+          chunks: !pt?.done ? (pt?.entryChunks ?? 0) : 0,
+          done: !!pt?.done,
+          inspection,
+          bootInspection: a.bootInspection,
+          midRgba,
+        },
+        midRgba ? [midRgba.buffer] : [],
+      );
+    }
     if (data.resume) {
       const saved = await readSavedMeta();
       if (!saved) throw new Error("no saved run to resume");
@@ -381,17 +415,39 @@ self.onmessage = async ({ data }) => {
     }
     const checker = CHECKERS[checkerName] ?? CHECKERS["tsgo-doom"];
     const a = await load();
+    const initPt = resume ?? a.resume;
+    const initIndex = resume ? (resume.scriptFrame ?? 0) + (resume.done ? 1 : 0) : 0;
+    const initInspection = inspectCheckpoint(a.shape, initPt);
+    const initMidRgba = !initPt?.done && initPt?.memory ? rgbaFrom(a.shape, initPt.memory) : null;
+    const initChunks = !initPt?.done ? (initPt?.entryChunks ?? 0) : 0;
+    post(
+      {
+        kind: "inspected",
+        index: initIndex,
+        chunks: initChunks,
+        done: !!initPt?.done,
+        inspection: initInspection,
+        bootInspection: a.bootInspection,
+        midRgba: initMidRgba,
+      },
+      initMidRgba ? [initMidRgba.buffer] : [],
+    );
     post({ kind: "status", text: `fetching ${checker.label}` });
     await checker.load();
-    post({ kind: "status", text: resume ? `resuming at frame ${(resume.scriptFrame ?? 0) + 1}` : "type-checking chunk 1" });
+    post({
+      kind: "status",
+      text: resume ? `resuming at frame ${(resume.scriptFrame ?? 0) + 1}` : "type-checking chunk 1",
+      index: initIndex,
+      chunks: initChunks,
+    });
     const t0 = performance.now();
-    let index = resume ? (resume.scriptFrame ?? 0) + (resume.done ? 1 : 0) : 0;
+    let index = initIndex;
     const result = await start({
       tsc: checker.tsc,
       moduleText: a.moduleText,
       libFiles: a.libFiles,
       keyScript,
-      resume: resume ?? a.resume,
+      resume: initPt,
       fuel: 16384,
       onCheckpoint: (p, path) => {
         if (path.endsWith(".final")) return;
@@ -399,14 +455,19 @@ self.onmessage = async ({ data }) => {
         p.elapsedMs = Math.round(ms);
         // mid-frame the screen is in a buffer `entry` has not returned yet
         if (p.scriptFrame !== undefined) index = p.scriptFrame;
+        const inspection = inspectCheckpoint(a.shape, p);
         if (!p.done) {
           saveCheckpoint(++seq, p);
-          return post({ kind: "progress", index, chunks: p.entryChunks, ms });
+          const midRgba = p.memory ? rgbaFrom(a.shape, p.memory) : null;
+          return post(
+            { kind: "progress", index, chunks: p.entryChunks, ms, inspection, midRgba },
+            midRgba ? [midRgba.buffer] : [],
+          );
         }
         const rgba = rgbaFrom(a.shape, p.memory, p.result);
         saveFrame(index, rgba);
         saveBound(index, saveCheckpoint(++seq, p));
-        post({ kind: "frame", index, rgba, chunks: p.entryChunks, ms }, [rgba.buffer]);
+        post({ kind: "frame", index, rgba, chunks: p.entryChunks, ms, inspection }, [rgba.buffer]);
         index++;
       },
       onLog: (t) => post({ kind: "log", text: t }),

@@ -377,6 +377,254 @@
     color: #7ee787;
     margin-left: auto;
   }
+  .tsc-slideshow {
+    background: #0d0e10;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .tsc-slide-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .tsc-slide-title {
+    font-size: 11.5px;
+    letter-spacing: 0.03em;
+    color: #fff;
+  }
+  .tsc-slide-badge {
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: #17191e;
+    border: 1px solid var(--border);
+    color: var(--accent2);
+    font-weight: 600;
+  }
+  .tsc-slide-btn {
+    padding: 2px 7px;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+  .tsc-slide-btn.active {
+    background: #1f242d;
+    border-color: #58a6ff;
+    color: #fff;
+  }
+  .tsc-slide-sub {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.35;
+  }
+  .tsc-stack-row, .tsc-vars-row, .tsc-slide-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    font-size: 11px;
+  }
+  .tsc-stack-pill {
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: #17191e;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .tsc-stack-pill:hover {
+    color: #fff;
+    border-color: #4a5160;
+  }
+  .tsc-stack-pill.head {
+    color: var(--fg);
+    border-color: #3b4252;
+    background: #1c2028;
+  }
+  .tsc-stack-arrow {
+    color: var(--muted);
+    opacity: 0.55;
+    font-size: 10px;
+  }
+  .tsc-var-pill {
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: #14161a;
+    border: 1px solid #252830;
+    color: #c9d1d9;
+    font-size: 10.5px;
+  }
+  .tsc-var-pill b {
+    color: #79c0ff;
+    font-weight: 600;
+  }
+  .tsc-slide-tab {
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: #16181d;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .tsc-slide-tab:hover {
+    color: var(--fg);
+    border-color: #4a5160;
+  }
+  .tsc-slide-tab.active {
+    background: rgba(217, 74, 56, 0.2);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  .tsc-code-wrap {
+    background: #090a0c;
+    border: 1px solid #22252c;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .tsc-code-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 8px;
+    background: #121418;
+    border-bottom: 1px solid #22252c;
+    font-size: 10.5px;
+    color: var(--accent2);
+  }
+  .tsc-slide-code {
+    margin: 0;
+    padding: 7px 8px;
+    font-size: 11px;
+    line-height: 1.42;
+    color: #d0d7de;
+    overflow: auto;
+    height: 148px;
+    min-height: 148px;
+    max-height: 148px;
+    white-space: pre;
+    tab-size: 2;
+  }
+  .tsc-slide-code .kw { color: #ff7b72; }
+  .tsc-slide-code .ty { color: #79c0ff; }
+  .tsc-slide-code .fn { color: #d2a8ff; font-weight: 600; }
+  .tsc-slide-code .cm { color: #7ee787; font-style: italic; }
+  .tsc-slide-code .st { color: #a5d6ff; }
+  .editor-playback-badge {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(86, 209, 105, 0.12);
+    border: 1px solid rgba(86, 209, 105, 0.35);
+    color: #7ee787;
+  }
+  .monaco-line-done {
+    border-left: 3px solid rgba(86, 209, 105, 0.55);
+  }
+  .monaco-line-checking {
+    background: rgba(255, 182, 72, 0.14) !important;
+    border-left: 3px solid #ffb648;
+  }
+  .monaco-line-cur {
+    background: rgba(217, 74, 56, 0.22) !important;
+    border-left: 3px solid var(--accent);
+  }
+  .monaco-badge-done {
+    color: #56d169 !important;
+    opacity: 0.65;
+    font-size: 11px;
+    margin-left: 12px;
+  }
+  .monaco-badge-checking {
+    color: #ffb648 !important;
+    font-weight: 600;
+    font-size: 11px;
+    margin-left: 12px;
+  }
+  .monaco-badge-cur {
+    color: #ff9b50 !important;
+    font-weight: 600;
+    font-size: 11px;
+    margin-left: 12px;
+  }
+  .monaco-badge-pending {
+    color: #8b92a0 !important;
+    opacity: 0.45;
+    font-size: 11px;
+    margin-left: 12px;
+  }
+  .editor-step-tooltip {
+    position: fixed;
+    z-index: 50;
+    background: rgba(15, 17, 21, 0.96);
+    border: 1px solid #3c424f;
+    border-radius: 6px;
+    padding: 8px 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-width: 280px;
+    font-size: 11.5px;
+  }
+  .editor-step-tooltip[hidden] { display: none; }
+  .est-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .est-pill {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+    letter-spacing: 0.03em;
+  }
+  .est-pill.done {
+    background: rgba(86, 209, 105, 0.18);
+    border: 1px solid rgba(86, 209, 105, 0.5);
+    color: #7ee787;
+  }
+  .est-pill.checking {
+    background: rgba(255, 182, 72, 0.2);
+    border: 1px solid rgba(255, 182, 72, 0.55);
+    color: #ffb648;
+  }
+  .est-pill.pending {
+    background: rgba(139, 146, 160, 0.15);
+    border: 1px solid rgba(139, 146, 160, 0.35);
+    color: var(--muted);
+  }
+  .est-meta {
+    font-size: 11px;
+    color: var(--fg);
+    line-height: 1.35;
+  }
+  .est-sub {
+    font-size: 10.5px;
+    color: var(--muted);
+    line-height: 1.3;
+  }
+  #editorTooltipCanvas {
+    width: 192px;
+    height: 120px;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    image-rendering: pixelated;
+    align-self: center;
+  }
 </style>
 </head>
 <body>
@@ -454,9 +702,30 @@
       <span style="flex:1"></span>
       <button id="followBtn" hidden>Follow current frame</button>
     </div>
-    <ol id="timeline"></ol>
-
-  </section>
+      <ol id="timeline"></ol>
+      <div id="tscSlideshow" class="tsc-slideshow">
+        <div class="tsc-slide-head">
+          <span class="rec-dot" id="tscSlideDot"></span>
+          <strong class="tsc-slide-title">LIVE TSC TYPE-CHECK SLIDESHOW</strong>
+          <span id="tscSlideFnBadge" class="tsc-slide-badge">Loading CFG..</span>
+          <span style="flex:1"></span>
+          <button type="button" id="tscSlidePrevBtn" class="tsc-slide-btn" title="Previous CFG block slide">&larr;</button>
+          <span id="tscSlideCount" class="meta">1 / 8</span>
+          <button type="button" id="tscSlideNextBtn" class="tsc-slide-btn" title="Next CFG block slide">&rarr;</button>
+          <button type="button" id="tscSlideAutoBtn" class="tsc-slide-btn active" title="Auto-step through the active CFG block pipeline while tsc evaluates chunks">Auto-Step</button>
+        </div>
+        <div id="tscSlideSub" class="tsc-slide-sub">Each frame (~35–70 chunks) steps through Doom's WebAssembly CFG compiled to TypeScript types. Hover any block tab or editor line to inspect.</div>
+        <div id="tscVarsRow" class="tsc-vars-row"></div>
+        <div id="tscSlideTabs" class="tsc-slide-tabs"></div>
+      <div class="tsc-code-wrap">
+        <div class="tsc-code-meta">
+          <span id="tscSlideCodeHeader">doom-keys.cfg.ts</span>
+          <span id="tscSlideCodeLines" class="meta"></span>
+        </div>
+        <pre id="tscSlideCode" class="tsc-slide-code">Loading TypeScript CFG type definitions from doom-keys.cfg.ts...</pre>
+      </div>
+    </div>
+    </section>
 
   <section class="card editorWrap">
     <div class="row">
@@ -510,6 +779,8 @@
       <button id="openFileBtn" title="Open a .ts run from your disk">Open file…</button>
       <button id="saveFileBtn" title="Save this run as a .ts file on your disk">Save file…</button>
       <input id="fileInput" type="file" accept=".ts,text/plain" hidden />
+      <span id="editorPlaybackBadge" class="editor-playback-badge" title="Hover any tic line in the editor to see its rendered/compiling/pending status &amp; frame preview; click a rendered tic line to seek">In-Code Playback: Hover/Click Line</span>
+      <label class="meta" title="Highlight and follow the active tic line in the TypeScript editor during playback and live type-checking"><input id="editorFollowChk" type="checkbox" checked /> Follow tic in code</label>
       <span style="flex:1"></span>
       <button id="exportBtn" title="Download the script, the frames checked so far and the checker's progress, as one file">Export run…</button>
       <button id="importBtn" title="Open an exported run: shows its frames and continues the check where it stopped">Import run…</button>
@@ -520,10 +791,18 @@
 
     <div class="help">
       <code>none&lt;tics&gt;</code> waits, <code>hold&lt;Key | Key[], tics&gt;</code> holds keys together. Type <code>"</code> inside <code>hold&lt;</code> for the key list; hover a key for what it does.
-      Starts on the skill menu: <code>...hold&lt;"Enter"&gt;</code> starts E1M1 on Hurt Me Plenty.
     </div>
   </section>
-</main>
+    <div id="editorStepTooltip" class="editor-step-tooltip" hidden>
+      <div class="est-head">
+        <span id="estStatusPill" class="est-pill">PENDING</span>
+        <span id="estTicLabel" class="meta">Tic 1</span>
+      </div>
+      <div id="estMeta" class="est-meta"></div>
+      <canvas id="editorTooltipCanvas" width="320" height="200"></canvas>
+      <div id="estSub" class="est-sub"></div>
+    </div>
+  </main>
 
 <main id="playbackTab" hidden>
   <section class="card" style="max-width:1000px">
@@ -1464,8 +1743,23 @@ function execute(script, saved) {
   stageText = saved ? "resuming from checkpoint" : "loading the checker";
   runT0 = performance.now() - (saved?.elapsedMs ?? 0);
   scrub.max = String(Math.max(0, frames.length - 1));
-  worker = new Worker("checker-worker.js?v=8", { type: "module" });
+  worker = new Worker("checker-worker.js?v=9", { type: "module" });
   worker.onmessage = ({ data: m }) => {
+    if (m.bootInspection) tscBootInspection = m.bootInspection;
+    if (m.inspection) {
+      tscInspection = m.inspection;
+      tscSlideIdx = 0;
+    }
+    if (m.midRgba) {
+      tscMidRgba = new Uint32Array(m.midRgba.buffer);
+    }
+    if (m.kind === "inspected") {
+      if (m.chunks > 0) curChunk = m.chunks;
+      updateTscSlideshow();
+      updateEditorStatusDecorations();
+      drawHud();
+      return;
+    }
     if (m.kind === "status") {
       if (m.text.startsWith("tsc ")) {
         lastTscText = m.text;
@@ -1474,11 +1768,15 @@ function execute(script, saved) {
         progress = `frame ${frames.length + 1}: chunk ${curChunk}/${target} (${lastTscText})`;
       } else if (m.text === "type-checking chunk 1" || m.text.startsWith("resuming at frame")) {
         stageText = "";
-        progress = `frame ${frames.length + 1}: checking chunk 1 of ~${estChunks}`;
+        if (typeof m.chunks === "number" && m.chunks > 0) curChunk = m.chunks;
+        const target = Math.max(estChunks, curChunk + 1);
+        progress = `frame ${frames.length + 1}: checking chunk ${(curChunk || 0) + 1} of ~${target}`;
       } else {
         stageText = m.text;
         progress = m.text;
       }
+      updateTscSlideshow();
+      updateEditorStatusDecorations();
     } else if (m.kind === "kept") {
       curChunk = 0;
       stageText = "";
@@ -1493,6 +1791,7 @@ function execute(script, saved) {
           for (let i = 0; i < m.frames; i++) frames[i] ??= r.frames[i];
           scrub.max = String(Math.max(0, frames.length - 1));
           drawFrame(Math.min(cur, frames.length - 1));
+          updateEditorStatusDecorations();
         });
       }
       cur = Math.min(cur, Math.max(0, frames.length - 1));
@@ -1505,17 +1804,23 @@ function execute(script, saved) {
         scrub.value = "0";
         frameLabel.textContent = "0 / 0";
       }
+      updateTscSlideshow();
+      updateEditorStatusDecorations();
     } else if (m.kind === "progress") {
       curChunk = m.chunks;
       stageText = "";
       const target = Math.max(estChunks, curChunk + 2);
       progress = `frame ${m.index + 1}: chunk ${m.chunks} of ~${target} checked`;
+      updateTscSlideshow();
+      updateEditorStatusDecorations();
     } else if (m.kind === "frame") {
       frames[m.index] = new Uint32Array(m.rgba.buffer);
       frameAt[m.index] = m.ms;
       if (m.chunks > 0) estChunks = m.chunks;
       curChunk = 0;
       stageText = "";
+      tscMidRgba = null;
+      tscShowMidOnMain = false;
       progress = `frame ${m.index + 1} checked in ${m.chunks} chunks`;
       scrub.max = String(frames.length - 1);
       // Follow the newest frame unless the user is scrubbing back.
@@ -1526,36 +1831,46 @@ function execute(script, saved) {
         doomAudio.onFrame(m.index, labels[m.index] || "", true);
         doomAudio.syncBgm();
       }
-  } else if (m.kind === "end" && m.result.failed) {
-    // drive.ts gave up on a chunk: the run stopped early, it did not finish.
-    checking = false;
-    stageText = "";
+      updateTscSlideshow();
+      updateEditorStatusDecorations();
+    } else if (m.kind === "end" && m.result.failed) {
+      // drive.ts gave up on a chunk: the run stopped early, it did not finish.
+      checking = false;
+      stageText = "";
       progress = `checker failed after ${frames.length} frames`;
       pauseHint = formatPauseHint(m.result.failed);
-    playing = false;
-    playBtn.textContent = "Play";
-    drawFrame(frames.length - 1);
-    console.error(m.result.failed);
-    showToast(`The checker failed on frame ${frames.length + 1}: ${m.result.failed.split("\n")[0]}`);
-    archiveRun(runStatus = "failed");
-    if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
-  } else if (m.kind === "end") {
-    checking = false;
-    curChunk = 0;
-    stageText = "";
-    progress = `done: ${frames.length} frames in ${fmtTime(m.result.ms)}`;
-    archiveRun(runStatus = "finished");
-    if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
-  } else if (m.kind === "error") {
-    checking = false;
-    stageText = "";
+      playing = false;
+      playBtn.textContent = "Play";
+      drawFrame(frames.length - 1);
+      console.error(m.result.failed);
+      showToast(`The checker failed on frame ${frames.length + 1}: ${m.result.failed.split("\n")[0]}`);
+      archiveRun(runStatus = "failed");
+      if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+      updateTscSlideshow();
+      updateEditorStatusDecorations();
+    } else if (m.kind === "end") {
+      checking = false;
+      curChunk = 0;
+      stageText = "";
+      tscMidRgba = null;
+      tscShowMidOnMain = false;
+      progress = `done: ${frames.length} frames in ${fmtTime(m.result.ms)}`;
+      archiveRun(runStatus = "finished");
+      if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+      updateTscSlideshow();
+      updateEditorStatusDecorations();
+    } else if (m.kind === "error") {
+      checking = false;
+      stageText = "";
       progress = "checker error";
       pauseHint = formatPauseHint(m.text);
       archiveRun(runStatus = "failed");
-    console.error(m.text);
-    showToast(m.text.split("\n")[0]);
-    if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
-  }
+      console.error(m.text);
+      showToast(m.text.split("\n")[0]);
+      if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+      updateTscSlideshow();
+      updateEditorStatusDecorations();
+    }
     if (!frames.length || m.kind !== "frame") drawHud();
   };
   if (saved) return worker.postMessage({ resume: true, tabId: TAB_ID });
@@ -2002,28 +2317,40 @@ timeline.addEventListener("click", (e) => {
   doomAudio.syncBgm(); doomAudio.onFrame(cur, labels[cur] || "");
 });
 
-function drawFrame(idx) {
-  if (!frames.length) return drawHud();
-  cur = Math.max(0, Math.min(frames.length - 1, idx));
-  // a kept frame still being read back from OPFS
-  const src = frames[cur];
-  if (src) {
-    for (let y = 0; y < 200; y++) {
-      const sRow = y * 320, d0 = y * 3 * 960, d1 = d0 + 960, d2 = d1 + 960;
-      for (let x = 0; x < 320; x++) {
-        const p = src[sRow + x], dx = x * 3;
-        rgba[d0 + dx] = rgba[d0 + dx + 1] = rgba[d0 + dx + 2] =
-        rgba[d1 + dx] = rgba[d1 + dx + 1] = rgba[d1 + dx + 2] =
-        rgba[d2 + dx] = rgba[d2 + dx + 1] = rgba[d2 + dx + 2] = p;
-      }
+function renderRgba320x200ToMain(src) {
+  if (!src) return;
+  for (let y = 0; y < 200; y++) {
+    const sRow = y * 320, d0 = y * 3 * 960, d1 = d0 + 960, d2 = d1 + 960;
+    for (let x = 0; x < 320; x++) {
+      const p = src[sRow + x], dx = x * 3;
+      rgba[d0 + dx] = rgba[d0 + dx + 1] = rgba[d0 + dx + 2] =
+      rgba[d1 + dx] = rgba[d1 + dx + 1] = rgba[d1 + dx + 2] =
+      rgba[d2 + dx] = rgba[d2 + dx + 1] = rgba[d2 + dx + 2] = p;
     }
-  } else {
-    rgba.fill(0);
   }
   ctx.putImageData(img, 0, 0);
+}
+
+function drawFrame(idx) {
+  if (!frames.length) {
+    if (tscShowMidOnMain && tscMidRgba) renderRgba320x200ToMain(tscMidRgba);
+    return drawHud();
+  }
+  cur = Math.max(0, Math.min(frames.length - 1, idx));
+  // a kept frame still being read back from OPFS
+  const src = (tscShowMidOnMain && tscMidRgba) ? tscMidRgba : frames[cur];
+  if (src) {
+    renderRgba320x200ToMain(src);
+  } else {
+    rgba.fill(0);
+    ctx.putImageData(img, 0, 0);
+  }
   scrub.value = String(cur);
-  frameLabel.textContent = `${cur + 1} / ${frames.length}`;
+  frameLabel.textContent = tscShowMidOnMain && tscMidRgba
+    ? `${frames.length + 1} (mid-chunk) / ${frames.length}`
+    : `${cur + 1} / ${frames.length}`;
   drawHud();
+  updateEditorCurDecoration();
 }
 setInterval(() => { if (checking) { drawHud(); doomAudio.syncBgm(); } }, 1000);
 
@@ -2594,14 +2921,559 @@ function showRestored(run) {
     playBtn.textContent = "Play";
     drawFrame(0);
     drawHud();
+    updateEditorStatusDecorations();
+    updateTscSlideshow();
+    requestIdleInspection();
   } else {
     execute(null, run);
     if (frames.length) drawFrame(cur);
     // The saved labels may come from an older page; rebuild them from the memory writes.
-    if (run.keyScript) { labels = labelsOf(run.keyScript); drawHud(); }
+    if (run.keyScript) { labels = labelsOf(run.keyScript); drawHud(); updateEditorStatusDecorations(); }
   }
 }
 
+// --- Live tsc Type-Check Slideshow & Monaco In-Code Playback ---
+let tscInspection = null;
+let tscBootInspection = null;
+let tscMidRgba = null;
+let tscSlideIdx = 0;
+let tscSlideAuto = true;
+let tscShowMidOnMain = false;
+
+const tscSlideDotEl = document.getElementById("tscSlideDot");
+const tscSlideFnBadgeEl = document.getElementById("tscSlideFnBadge");
+const tscSlideCountEl = document.getElementById("tscSlideCount");
+const tscSlidePrevBtn = document.getElementById("tscSlidePrevBtn");
+const tscSlideNextBtn = document.getElementById("tscSlideNextBtn");
+const tscSlideAutoBtn = document.getElementById("tscSlideAutoBtn");
+const tscSlideSubEl = document.getElementById("tscSlideSub");
+const tscStackRowEl = document.getElementById("tscStackRow");
+const tscVarsRowEl = document.getElementById("tscVarsRow");
+const tscSlideTabsEl = document.getElementById("tscSlideTabs");
+const tscCodeHeaderEl = document.getElementById("tscCodeHeader");
+const tscCodeLinesEl = document.getElementById("tscCodeLines");
+const tscSlideCodeEl = document.getElementById("tscSlideCode");
+const tscMidWrapEl = document.getElementById("tscMidWrap");
+const tscMidTitleEl = document.getElementById("tscMidTitle");
+const tscMidCanvasEl = document.getElementById("tscMidCanvas");
+const tscMidHintEl = document.getElementById("tscMidHint");
+const tscMidCtx = tscMidCanvasEl ? tscMidCanvasEl.getContext("2d") : null;
+const tscMidImg = tscMidCtx ? tscMidCtx.createImageData(320, 200) : null;
+const tscMidU32 = tscMidImg ? new Uint32Array(tscMidImg.data.buffer) : null;
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function highlightCfgCode(raw) {
+  const esc = escapeHtml(raw);
+  return esc
+    .replace(/(\/\*[^*]*\*\/)/g, '<span class="cm">$1</span>')
+    .replace(/('(?:[^'\\]|\\.)*')/g, '<span class="st">$1</span>')
+    .replace(/\b(export|type|extends|infer|never|keyof|readonly)\b/g, '<span class="kw">$1</span>')
+    .replace(/(\$(?:call\d+|b\d+_\d+|p\d+_\d+_\d+|Exit|Entry|State|Node|Load\d+U?|Store\d+|Inc\d*|Dec\d*|Eq|Select|Memory|Wasm\.[A-Za-z0-9_]+)|\b(?:WasmValue|string|unknown)\b)/g, '<span class="ty">$1</span>');
+}
+
+function drawRgbaToSmallCanvas(srcU32, targetCtx, targetImg, targetU32) {
+  if (!srcU32 || !targetCtx || !targetImg || !targetU32) return;
+  targetU32.set(srcU32.subarray(0, 64000));
+  targetCtx.putImageData(targetImg, 0, 0);
+}
+
+function renderActiveTscSlide() {
+  const insp = tscInspection || tscBootInspection;
+  const slides = insp?.slides || [];
+  if (!slides.length) return;
+  if (tscSlideIdx >= slides.length) tscSlideIdx = 0;
+  if (tscSlideIdx < 0) tscSlideIdx = slides.length - 1;
+  const s = slides[tscSlideIdx];
+  tscSlideCountEl.textContent = `${tscSlideIdx + 1} / ${slides.length}`;
+  tscCodeHeaderEl.textContent = `doom-keys.cfg.ts · ${s.fnName}() · ${s.declName}`;
+  tscCodeLinesEl.textContent = `lines ${s.startLine.toLocaleString()}–${s.endLine.toLocaleString()}`;
+  tscSlideCodeEl.innerHTML = highlightCfgCode(s.code);
+  const tabBtns = tscSlideTabsEl.querySelectorAll(".tsc-slide-tab");
+  tabBtns.forEach((btn, i) => btn.classList.toggle("active", i === tscSlideIdx));
+}
+
+function updateTscSlideshow() {
+  const insp = tscInspection || tscBootInspection;
+  const isDone = !checking && runStatus === "finished" && frames.length > 0;
+  const isStopped = !checking && !isDone;
+  if (tscSlideDotEl) {
+    tscSlideDotEl.className = "rec-dot" + (isDone ? " done" : isStopped ? " stopped" : "");
+  }
+  if (insp) {
+    tscSlideFnBadgeEl.textContent = `${insp.fnName}() · $b${insp.headBlock}`;
+    const target = Math.max(estChunks, curChunk + 1);
+    if (checking) {
+      tscSlideSubEl.textContent = `Frame ${frames.length + 1} · chunk ${curChunk || 1}/~${target}${lastTscText ? ` (${lastTscText})` : stageText ? ` (${stageText})` : ""} — evaluating ${insp.fnName}() at basic block $b${insp.headBlock}`;
+    } else if (tscMidRgba) {
+      tscSlideSubEl.textContent = `Checkpoint at Frame ${frames.length + 1} (chunk ${curChunk || 1}, inside ${insp.fnName}() $b${insp.headBlock}). Click any CFG block tab or editor tic line.`;
+    } else {
+      tscSlideSubEl.textContent = `Inspecting ${insp.fnName}() ($b${insp.headBlock}) in doom-keys.cfg.ts. Hover or click any tic line in the TypeScript editor below to preview its frame.`;
+    }
+
+    // Render globals & locals
+    const vars = [...(insp.globals || []), ...(insp.locals || []).slice(0, 6)];
+    tscVarsRowEl.innerHTML = vars.map((v) => (
+      `<span class="tsc-var-pill" title="${escapeHtml(v.name)} = ${v.u32} (signed: ${v.i32}, hex: ${v.hex})"><b>${escapeHtml(v.name)}</b> ${escapeHtml(v.hex)}</span>`
+    )).join("");
+
+    // Render slide tabs
+    const slides = insp.slides || [];
+    tscSlideTabsEl.innerHTML = slides.map((s, i) => (
+      `<button type="button" class="tsc-slide-tab${i === tscSlideIdx ? ' active' : ''}" data-idx="${i}" title="Lines ${s.startLine}–${s.endLine} in doom-keys.cfg.ts">$b${escapeHtml(s.block)} · ${escapeHtml(s.fnName)}</button>`
+    )).join("");
+    renderActiveTscSlide();
+  }
+}
+tscSlideTabsEl?.addEventListener("click", (e) => {
+  const btn = e.target.closest(".tsc-slide-tab");
+  if (!btn) return;
+  tscSlideIdx = Number(btn.dataset.idx) || 0;
+  renderActiveTscSlide();
+});
+
+
+tscSlidePrevBtn?.addEventListener("click", () => {
+  tscSlideAuto = false;
+  tscSlideAutoBtn?.classList.remove("active");
+  tscSlideIdx--;
+  renderActiveTscSlide();
+});
+
+tscSlideNextBtn?.addEventListener("click", () => {
+  tscSlideAuto = false;
+  tscSlideAutoBtn?.classList.remove("active");
+  tscSlideIdx++;
+  renderActiveTscSlide();
+});
+
+tscSlideAutoBtn?.addEventListener("click", () => {
+  tscSlideAuto = !tscSlideAuto;
+  tscSlideAutoBtn.classList.toggle("active", tscSlideAuto);
+});
+
+setInterval(() => {
+  if (!tscSlideAuto) return;
+  const slides = (tscInspection || tscBootInspection)?.slides || [];
+  if (slides.length > 1) {
+    tscSlideIdx = (tscSlideIdx + 1) % slides.length;
+    renderActiveTscSlide();
+  }
+}, 2200);
+
+function requestIdleInspection() {
+  if (checking || tscInspection) return;
+  const w = new Worker("checker-worker.js?v=9", { type: "module" });
+  w.onmessage = ({ data: m }) => {
+    if (m.kind === "inspected") {
+      if (m.bootInspection) tscBootInspection = m.bootInspection;
+      if (m.inspection) tscInspection = m.inspection;
+      if (m.midRgba) tscMidRgba = new Uint32Array(m.midRgba.buffer);
+      if (m.chunks > 0 && !curChunk) curChunk = m.chunks;
+      updateTscSlideshow();
+      updateEditorStatusDecorations();
+      w.terminate();
+    }
+  };
+  w.postMessage({ inspectOnly: true, tabId: TAB_ID });
+}
+
+// --- Monaco Editor In-Code Playback (Line -> Frame mapping, decorations, hover preview, click-to-seek) ---
+const editorFollowChk = document.getElementById("editorFollowChk");
+const editorPlaybackBadge = document.getElementById("editorPlaybackBadge");
+const editorStepTooltip = document.getElementById("editorStepTooltip");
+const estStatusPill = document.getElementById("estStatusPill");
+const estTicLabel = document.getElementById("estTicLabel");
+const estMeta = document.getElementById("estMeta");
+const editorTooltipCanvas = document.getElementById("editorTooltipCanvas");
+const estSub = document.getElementById("estSub");
+const estCtx = editorTooltipCanvas ? editorTooltipCanvas.getContext("2d") : null;
+const estImg = estCtx ? estCtx.createImageData(320, 200) : null;
+const estU32 = estImg ? new Uint32Array(estImg.data.buffer) : null;
+
+let parsedEditorSteps = { lineSteps: new Map(), frameToLine: new Map(), entries: [], totalFrames: 0 };
+let parsedEditorText = "";
+let editorStatusDecIds = [];
+let editorCurDecIds = [];
+let lastCurDecLine = -1;
+
+function parseEditorLineSteps(text) {
+  const lines = String(text || "").split("\n");
+  const lineSteps = new Map();
+  const frameToLine = new Map();
+  const demoEntries = [];
+  const extendEntries = [];
+  const inputEntries = [];
+
+  let section = null;
+  let objStartLine = 0;
+  let braceDepth = 0;
+  let objText = "";
+
+  for (let i = 0; i < lines.length; i++) {
+    const lineNum = i + 1;
+    const raw = lines[i];
+    const code = raw.replace(/\/\/.*$/, "").trim();
+    if (!code) continue;
+
+    if (/^type\s+Demo\s*=\s*\[/.test(code)) { section = "demo"; continue; }
+    if (/^type\s+Inputs\s*=\s*Run\s*<\s*\[/.test(code)) { section = "inputs"; continue; }
+
+    if (section === "demo") {
+      if (code.startsWith("]")) { section = null; continue; }
+      const rep = code.match(/^\.\.\.Repeat<\s*(.+?)\s*,\s*(\d+)\s*>/);
+      if (rep) {
+        demoEntries.push({ lineNum, endLineNum: lineNum, count: Number(rep[2]), desc: rep[1] });
+      } else if (code.startsWith("{")) {
+        demoEntries.push({ lineNum, endLineNum: lineNum, count: 1, desc: code.replace(/,\s*$/, "") });
+      }
+      continue;
+    }
+
+    if (section === "extend") {
+      if (code.startsWith("]")) { section = "inputs_obj_after_extend"; continue; }
+      const rep = code.match(/^\.\.\.Repeat<\s*(.+?)\s*,\s*(\d+)\s*>/);
+      if (rep) {
+        extendEntries.push({ lineNum, endLineNum: lineNum, count: Number(rep[2]), desc: rep[1] });
+      } else if (code.startsWith("{")) {
+        extendEntries.push({ lineNum, endLineNum: lineNum, count: 1, desc: code.replace(/,\s*$/, "") });
+      }
+      continue;
+    }
+
+    if (section === "inputs_obj_after_extend") {
+      if (code.includes("}")) section = "inputs";
+      continue;
+    }
+
+    if (section === "inputs_obj") {
+      objText += " " + code;
+      if (code.includes("extendDemo") && code.includes("[")) {
+        section = "extend";
+        continue;
+      }
+      for (const ch of code) {
+        if (ch === "{") braceDepth++;
+        else if (ch === "}") braceDepth--;
+      }
+      if (braceDepth <= 0) {
+        inputEntries.push({
+          lineNum: objStartLine,
+          endLineNum: lineNum,
+          count: 1,
+          hasPlayDemo: /playDemo\s*:/.test(objText),
+          hasExtendDemo: /extendDemo\s*:/.test(objText),
+          desc: objText.trim(),
+        });
+        section = "inputs";
+      }
+      continue;
+    }
+
+    if (section === "inputs") {
+      if (code.startsWith("]>")) { section = null; continue; }
+      const noneM = code.match(/^\.\.\.none<\s*(\d+)\s*>/);
+      const holdN = code.match(/^\.\.\.hold<\s*(.+?)\s*,\s*(\d+)\s*>/);
+      const hold1 = !holdN && code.match(/^\.\.\.hold<\s*(.+?)\s*>/);
+      const repM = code.match(/^\.\.\.Repeat<\s*(.+?)\s*,\s*(\d+)\s*>/);
+      if (noneM) {
+        inputEntries.push({ lineNum, endLineNum: lineNum, count: Number(noneM[1]), desc: `none<${noneM[1]}>`, isDemoWait: /demo plays/i.test(raw) });
+      } else if (holdN) {
+        inputEntries.push({ lineNum, endLineNum: lineNum, count: Number(holdN[2]), desc: `hold<${holdN[1]}, ${holdN[2]}>` });
+      } else if (hold1) {
+        inputEntries.push({ lineNum, endLineNum: lineNum, count: 1, desc: `hold<${hold1[1]}>` });
+      } else if (repM) {
+        inputEntries.push({ lineNum, endLineNum: lineNum, count: Number(repM[2]), desc: repM[1] });
+      } else if (code.startsWith("{")) {
+        braceDepth = 0;
+        for (const ch of code) {
+          if (ch === "{") braceDepth++;
+          else if (ch === "}") braceDepth--;
+        }
+        if (braceDepth <= 0) {
+          const setM = code.match(/setDemoTic\s*:\s*\[\s*(\d+)/);
+          inputEntries.push({
+            lineNum,
+            endLineNum: lineNum,
+            count: 1,
+            hasPlayDemo: /playDemo\s*:/.test(code),
+            hasExtendDemo: /extendDemo\s*:/.test(code),
+            setDemoTic: setM ? Number(setM[1]) : undefined,
+            desc: code.replace(/,\s*$/, ""),
+          });
+        } else {
+          objStartLine = lineNum;
+          objText = code;
+          if (code.includes("extendDemo") && code.includes("[")) {
+            section = "extend";
+          } else {
+            section = "inputs_obj";
+          }
+        }
+      } else if (code.startsWith("[") || /^[A-Z_]/.test(code)) {
+        inputEntries.push({ lineNum, endLineNum: lineNum, count: 1, desc: code.replace(/,\s*$/, "") });
+      }
+    }
+  }
+
+  let curFrame = 0;
+  let demoStartFrame = null;
+  const entries = [];
+
+  for (const inp of inputEntries) {
+    if (inp.hasPlayDemo && demoStartFrame === null) demoStartFrame = curFrame;
+    if (inp.setDemoTic !== undefined && demoStartFrame !== null) {
+      const f = demoStartFrame + inp.setDemoTic;
+      const entry = { lineNum: inp.lineNum, endLineNum: inp.endLineNum, startFrame: f, endFrame: f, count: 1, kind: "setDemoTic", desc: inp.desc };
+      lineSteps.set(inp.lineNum, entry);
+      entries.push(entry);
+    }
+    const startFrame = curFrame;
+    const endFrame = curFrame + inp.count - 1;
+    if (!inp.isDemoWait || demoEntries.length === 0) {
+      const entry = { lineNum: inp.lineNum, endLineNum: inp.endLineNum, startFrame, endFrame, count: inp.count, kind: "input", desc: inp.desc };
+      for (let ln = inp.lineNum; ln <= inp.endLineNum; ln++) lineSteps.set(ln, entry);
+      for (let f = startFrame; f <= endFrame; f++) frameToLine.set(f, entry);
+      entries.push(entry);
+    }
+    curFrame += inp.count;
+  }
+
+  if (demoStartFrame !== null) {
+    let dFrame = demoStartFrame;
+    for (const d of demoEntries) {
+      const startFrame = dFrame;
+      const endFrame = dFrame + d.count - 1;
+      const entry = { lineNum: d.lineNum, endLineNum: d.endLineNum, startFrame, endFrame, count: d.count, kind: "demo", desc: d.desc };
+      lineSteps.set(d.lineNum, entry);
+      for (let f = startFrame; f <= endFrame; f++) frameToLine.set(f, entry);
+      entries.push(entry);
+      dFrame += d.count;
+    }
+    for (const e of extendEntries) {
+      const startFrame = dFrame;
+      const endFrame = dFrame + e.count - 1;
+      const entry = { lineNum: e.lineNum, endLineNum: e.endLineNum, startFrame, endFrame, count: e.count, kind: "extendDemo", desc: e.desc };
+      lineSteps.set(e.lineNum, entry);
+      for (let f = startFrame; f <= endFrame; f++) frameToLine.set(f, entry);
+      entries.push(entry);
+      dFrame += e.count;
+    }
+  }
+
+  return { lineSteps, frameToLine, entries, totalFrames: curFrame };
+}
+
+function ensureParsedEditorSteps() {
+  const txt = editor.value;
+  if (txt !== parsedEditorText) {
+    parsedEditorText = txt;
+    parsedEditorSteps = parseEditorLineSteps(txt);
+  }
+  return parsedEditorSteps;
+}
+
+let lastCheckingDecLine = -1;
+
+function updateEditorCurDecoration() {
+  if (typeof monacoEditor === "undefined" || !monacoEditor) return;
+  const { frameToLine } = ensureParsedEditorSteps();
+  const activeEntry = frames.length ? frameToLine.get(cur) : null;
+  const lineNum = activeEntry ? activeEntry.lineNum : -1;
+  if (lineNum === lastCurDecLine) return;
+  lastCurDecLine = lineNum;
+  if (lineNum > 0) {
+    const ticDesc = labels[cur] ? ` · ${labels[cur]}` : "";
+    const maxCol = editorModel ? editorModel.getLineMaxColumn(activeEntry.endLineNum) : 1000;
+    editorCurDecIds = monacoEditor.deltaDecorations(editorCurDecIds, [{
+      range: new monaco.Range(lineNum, 1, activeEntry.endLineNum, maxCol),
+      options: {
+        isWholeLine: true,
+        className: "monaco-line-cur",
+        after: {
+          content: `  ▶ playing tic ${cur + 1}${ticDesc}`,
+          inlineClassName: "monaco-badge-cur",
+        },
+      },
+    }]);
+    if (playing && editorFollowChk?.checked) {
+      monacoEditor.revealLineInCenterIfOutsideViewport(lineNum);
+    }
+  } else {
+    editorCurDecIds = monacoEditor.deltaDecorations(editorCurDecIds, []);
+  }
+}
+
+function updateEditorStatusDecorations() {
+  if (typeof monacoEditor === "undefined" || !monacoEditor) return;
+  const { entries, totalFrames } = ensureParsedEditorSteps();
+  const doneCount = frames.length;
+  const newDecs = [];
+  let checkingLine = -1;
+
+  for (const e of entries) {
+    const rangeText = e.count > 1 ? `tics ${e.startFrame + 1}..${e.endFrame + 1}` : `tic ${e.startFrame + 1}`;
+    const maxCol = editorModel ? editorModel.getLineMaxColumn(e.endLineNum) : 1000;
+    if (e.endFrame < doneCount) {
+      newDecs.push({
+        range: new monaco.Range(e.lineNum, 1, e.endLineNum, maxCol),
+        options: {
+          isWholeLine: true,
+          className: "monaco-line-done",
+          after: {
+            content: `  ✓ ${rangeText}`,
+            inlineClassName: "monaco-badge-done",
+          },
+        },
+      });
+    } else if ((checking || tscMidRgba) && doneCount >= e.startFrame && doneCount <= e.endFrame) {
+      checkingLine = e.lineNum;
+      const target = Math.max(estChunks, curChunk + 1);
+      const fnTag = (tscInspection || tscBootInspection)?.fnName ? ` · ${(tscInspection || tscBootInspection).fnName}()` : "";
+      newDecs.push({
+        range: new monaco.Range(e.lineNum, 1, e.endLineNum, maxCol),
+        options: {
+          isWholeLine: true,
+          className: "monaco-line-checking",
+          after: {
+            content: `  ⚡ ${checking ? "type-checking" : "paused at"} tic ${doneCount + 1} (chunk ${curChunk || 1}/~${target}${fnTag})`,
+            inlineClassName: "monaco-badge-checking",
+          },
+        },
+      });
+    } else {
+      newDecs.push({
+        range: new monaco.Range(e.lineNum, 1, e.endLineNum, maxCol),
+        options: {
+          isWholeLine: false,
+          after: {
+            content: `  · ${rangeText}`,
+            inlineClassName: "monaco-badge-pending",
+          },
+        },
+      });
+    }
+  }
+  editorStatusDecIds = monacoEditor.deltaDecorations(editorStatusDecIds, newDecs);
+  if (checkingLine > 0 && checkingLine !== lastCheckingDecLine) {
+    lastCheckingDecLine = checkingLine;
+    if (editorFollowChk?.checked && (!playing || cur >= doneCount - 1)) {
+      monacoEditor.revealLineInCenterIfOutsideViewport(checkingLine);
+    }
+  } else if (checkingLine < 0) {
+    lastCheckingDecLine = -1;
+  }
+  lastCurDecLine = -1;
+  updateEditorCurDecoration();
+  if (editorPlaybackBadge) {
+    editorPlaybackBadge.textContent = `In-Code Playback: ${Math.min(doneCount, totalFrames)}/${totalFrames || labels.length} tics rendered · Hover/Click line`;
+  }
+}
+monacoEditor.onDidChangeModelContent(() => {
+  updateEditorStatusDecorations();
+});
+
+monacoEditor.onMouseMove((e) => {
+  const pos = e.target?.position;
+  if (!pos || !editorStepTooltip) {
+    if (editorStepTooltip) editorStepTooltip.hidden = true;
+    return;
+  }
+  const { lineSteps } = ensureParsedEditorSteps();
+  const entry = lineSteps.get(pos.lineNumber);
+  if (!entry) {
+    editorStepTooltip.hidden = true;
+    return;
+  }
+  const doneCount = frames.length;
+  const isRendered = entry.startFrame < doneCount;
+  const isCheckingNow = (checking || tscMidRgba) && doneCount >= entry.startFrame && doneCount <= entry.endFrame;
+  const previewFrameIdx = isRendered
+    ? (cur >= entry.startFrame && cur <= entry.endFrame ? cur : Math.min(entry.endFrame, doneCount - 1))
+    : Math.max(0, doneCount - 1);
+
+  if (isCheckingNow && (!isRendered || previewFrameIdx === doneCount)) {
+    estStatusPill.className = "est-pill est-pill-checking";
+    estStatusPill.textContent = checking ? "COMPILING NOW" : "PAUSED MID-TIC";
+  } else if (isRendered) {
+    estStatusPill.className = "est-pill est-pill-done";
+    estStatusPill.textContent = "RENDERED";
+  } else {
+    estStatusPill.className = "est-pill est-pill-pending";
+    estStatusPill.textContent = "PENDING";
+  }
+
+  const tSec = (entry.startFrame / 35).toFixed(2);
+  estTicLabel.textContent = entry.count > 1
+    ? `Tics ${entry.startFrame + 1}–${entry.endFrame + 1} (${entry.count} tics · ${tSec}s)`
+    : `Tic ${entry.startFrame + 1} (${tSec}s)`;
+
+  const lbl = labels[isRendered ? previewFrameIdx : entry.startFrame] || entry.desc;
+  const msInfo = isRendered && frameAt[previewFrameIdx] ? ` · ${(frameAt[previewFrameIdx] / 1000).toFixed(1)}s` : "";
+  estMeta.textContent = `Input: ${lbl}${msInfo}`;
+
+  const rgbaToDraw = (isCheckingNow && tscMidRgba && !frames[entry.startFrame])
+    ? tscMidRgba
+    : (isRendered && frames[previewFrameIdx])
+      ? frames[previewFrameIdx]
+      : (tscMidRgba || (doneCount > 0 ? frames[doneCount - 1] : null));
+
+  if (rgbaToDraw) {
+    editorTooltipCanvas.hidden = false;
+    drawRgbaToSmallCanvas(rgbaToDraw, estCtx, estImg, estU32);
+  } else {
+    editorTooltipCanvas.hidden = true;
+  }
+
+  if (isRendered) {
+    estSub.textContent = `Showing Frame ${previewFrameIdx + 1}. Click this line in the editor to jump playback here.`;
+  } else if (isCheckingNow) {
+    const fnName = (tscInspection || tscBootInspection)?.fnName || "entry";
+    estSub.textContent = `TypeScript is at chunk ${curChunk || 1} inside ${fnName}() — previewing live mid-chunk Wasm RAM.`;
+  } else {
+    estSub.textContent = `Queued (${entry.startFrame - doneCount + 1} tics after checkpoint Frame ${doneCount}).`;
+  }
+
+  editorStepTooltip.hidden = false;
+  const ev = e.event?.browserEvent;
+  if (ev) {
+    const x = Math.min(window.innerWidth - 300, Math.max(12, ev.clientX + 18));
+    const y = Math.min(window.innerHeight - 250, Math.max(12, ev.clientY - 20));
+    editorStepTooltip.style.left = `${x}px`;
+    editorStepTooltip.style.top = `${y}px`;
+  }
+});
+
+document.getElementById("editor")?.addEventListener("mouseleave", () => {
+  if (editorStepTooltip) editorStepTooltip.hidden = true;
+});
+
+monacoEditor.onMouseDown((e) => {
+  const pos = e.target?.position;
+  if (!pos) return;
+  const { lineSteps } = ensureParsedEditorSteps();
+  const entry = lineSteps.get(pos.lineNumber);
+  if (!entry) return;
+  if (entry.startFrame < frames.length) {
+    tscShowMidOnMain = false;
+    playing = false;
+    playBtn.textContent = "Play";
+    const targetFrame = (cur >= entry.startFrame && cur < Math.min(entry.endFrame, frames.length - 1))
+      ? cur + 1
+      : entry.startFrame;
+    drawFrame(targetFrame);
+    doomAudio.syncBgm();
+    doomAudio.onFrame(cur, labels[cur] || "");
+  } else if (tscMidRgba && frames.length >= entry.startFrame && frames.length <= entry.endFrame) {
+    tscShowMidOnMain = true;
+    playing = false;
+    playBtn.textContent = "Play";
+    renderRgba320x200ToMain(tscMidRgba);
+    updateTscSlideshow();
+  }
+});
 
 const restored = await decodeHash(location.hash).catch(() => null);
 const hashText = restored && typeof restored.t === "string" ? restored.t : undefined;

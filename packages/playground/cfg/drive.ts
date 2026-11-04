@@ -384,7 +384,7 @@ const initialMemory = (moduleText: string): Trie => {
 /// subtrees, and 32-character binary literals.
 const WORD = /^"[01]{32}"$/;
 // a block name as the compiler spells it: function index, then block index
-const BLOCK = /^"?\d+_\d+"?$/;
+const BLOCK = /^"?(?:trap_)?\d+_\d+"?$/;
 // `$Zero`, `$Absent` and `$InitialMemory` are aliases the compiler emits; the
 // checker prints them back and the host can paste them straight into the next
 // chunk. `"u"` is a subtree the program has never written: it reads through to
@@ -984,8 +984,12 @@ type $Tex_10_6_6_16_0_6<M extends $Node, D extends WasmValue, KD extends WasmVal
       .replace(oldIdxSpan, newIdxSpan)
       .replace(oldCol, newCol)
      .replace(oldSpan, newSpan)
-     .replace("${c28}${c29}${c30}` : never", "${c28}00` : never")
-     .replace("type $State = [$Node, ...WasmValue[]]", "type $State = [any, ...WasmValue[]]");
+      .replace("${c28}${c29}${c30}` : never", "${c28}00` : never")
+      .replace("type $State = [$Node, ...WasmValue[]]", "type $State = [any, ...WasmValue[]]")
+      .replace(
+        /type \$b(43_46|163_6|166_10|621_1)<([^>]+)> =\n  \$F extends `1\$\{infer \$F1\}`\n  \? never/g,
+        "type $$b$1<$2> =\n  $$F extends `1$${infer $$F1}`\n  ? ['s', [['trap_$1', '0'], ...$$K], $$M, $$g0, $$g1]",
+      );
     // The string module has one import (`from 'ts-type-math'`, bare names); the
     // Word4 module has two (`Convert` from the package, and the byte-tuple
     // helpers from the `/word4` subpath, some `X as Y` aliased and one a
@@ -1149,16 +1153,21 @@ type $Tex_10_6_6_16_0_6<M extends $Node, D extends WasmValue, KD extends WasmVal
   // nothing until one is asked for: a type alias is only instantiated when
   // something reads it, and the whole point is that almost always only the
   // root is read.
-  const splitReaders = (() => {
+  const splitReaders = (active: Set<string>): string => {
     const lines: string[] = [];
+    const exp1 = active.has("$Out_Mem") ? "export " : "";
     for (let i = 0; i < fanout; i++) {
-      lines.push(`export type $Out_Mem_${i} = $Kid${i}<$Out_Mem>`);
-      for (let j = 0; j < fanout; j++) {
-        lines.push(`export type $Out_Mem_${i}_${j} = $Kid${j}<$Out_Mem_${i}>`);
+      const m1 = `$Out_Mem_${i}`;
+      lines.push(`${exp1 && !active.has(m1) ? "export " : ""}type ${m1} = $Kid${i}<$Out_Mem>`);
+      if (active.has(m1) || process.env.DUMP_CHUNKS) {
+        const exp2 = active.has(m1) ? "export " : "";
+        for (let j = 0; j < fanout; j++) {
+          lines.push(`${exp2}type ${m1}_${j} = $Kid${j}<${m1}>`);
+        }
       }
     }
     return lines.join("\n");
-  })();
+  };
   // one '1' per unit of work; taking a prefix off a string is free, unlike
   // re-slicing a tuple on every hop
   /// Where a finished frame's successor comes from.
@@ -1623,8 +1632,8 @@ export type $Out_Frames = $Frames<$Result>
 export type $Out_Globals = $GlobalsOf<$Result>
 export type $Out_Value = $ValueOf<$Result>
 ${MERGE_TYPE}
-export type $Out_Mem = $Merge<$IN, $MemOf<$Result>>
-${splitReaders}
+${split.has("$Out_Mem") ? "" : "export "}type $Out_Mem = $Merge<$IN, $MemOf<$Result>>
+${splitReaders(split)}
 `;
     env.createFile(path, file);
     fileMs += performance.now() - f0;
@@ -2003,6 +2012,10 @@ ${splitReaders}
       break;
     }
     const [innermost, ...outer] = parsed;
+    if (innermost.block.startsWith("trap_")) {
+      failed = `chunk ${carried + chunks}: wasm unreachable trap at ${innermost.block.slice(5)} (${outer.map((f) => f.block).join(" <- ")})`;
+      break;
+    }
     // A back edge in the entry's own function is the start of the next frame:
     // record it while the locals are in hand, because once `entry` returns they
     // are gone and re-calling `entry` re-runs init (see backEdgeReentry).

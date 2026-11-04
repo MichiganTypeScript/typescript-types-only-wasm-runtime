@@ -62,17 +62,44 @@ class ProbeProgram {
 
   read(path: string, name: string): Promise<string> {
     this.results ??= this.check(path);
-    return this.results.then((r) => {
-      const text = r.get(name);
-      if (text === undefined) throw new Error(`typeString is empty for ${path}. was searching for ${name}`);
+    return this.results.then(async (r) => {
+      let text = r.get(name);
+      if (text === undefined && name.startsWith("$Out_Mem_")) {
+        await this.checkBranch(path, name, r);
+        text = r.get(name);
+      }
+      if (text === undefined) throw new Error(`typeString is empty for ${path}. Was searching for ${name}`);
       return text;
     });
   }
 
+  private async checkBranch(path: string, name: string, out: Map<string, string>): Promise<void> {
+    const parts = name.split("_");
+    const parent = parts.length === 4 ? `$Out_Mem_${parts[2]}` : "$Out_Mem";
+    const source = this.files.get(path) ?? "";
+    const fanout = [...source.matchAll(/^(?:export )?type \$Out_Mem_\d+ =/gm)].length || 64;
+    const names: string[] = [];
+    const extraTypes: string[] = [];
+    for (let j = 0; j < fanout; j++) {
+      const child = `${parent}_${j}`;
+      names.push(child);
+      if (parts.length === 4 && !source.includes(`type ${child} =`)) {
+        extraTypes.push(`export type ${child} = $Kid${j}<${parent}>;`);
+      }
+    }
+    const prefix = extraTypes.length ? `${source}\n${extraTypes.join("\n")}` : source;
+    const branchMap = await this.runProbes(path, prefix, names);
+    for (const [k, v] of branchMap) out.set(k, v);
+  }
+
   private async check(path: string): Promise<Map<string, string>> {
-    if (!host.tsc) throw new Error("shim/evaluate: host.tsc is not set");
     const source = this.files.get(path) ?? "";
     const names = [...source.matchAll(/^export type (\$Out_\w+)/gm)].map((m) => m[1]!);
+    return this.runProbes(path, source, names);
+  }
+
+  private async runProbes(path: string, source: string, names: string[]): Promise<Map<string, string>> {
+    if (!host.tsc) throw new Error("shim/evaluate: host.tsc is not set");
     const lines = source.split("\n").length;
     const probed = `${source}\n${names.map((n, k) => `export const __p${k}: ${n} = 12345;`).join("\n")}\n`;
     const rel = (p: string) => (p.startsWith(host.root + "/") ? p.slice(host.root.length + 1) : p);

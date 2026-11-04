@@ -64,4 +64,4 @@ export const start = async (o: Start) => {
   });
 };
 
-export { moduleShape, rgbaFrom } from "./frame";
+export { moduleShape, rgbaFrom, inspectCheckpoint } from "./frame";
