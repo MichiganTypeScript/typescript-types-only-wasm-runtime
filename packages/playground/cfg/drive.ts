@@ -1622,6 +1622,15 @@ function sbrkWord(moduleText: string) {
     const emittedState = options.word4 ? w4Encode(stateText) : stateText;
     const emittedCall = options.word4 ? w4Encode(call) : call;
     env.createFile(statePathDts, emittedState);
+    if (fanout > 0 && memory.length > 800000 && Array.isArray(memoryTrie)) {
+      split.add("$Out_Mem");
+      for (let i = 0; i < fanout; i++) {
+        const child = memoryTrie[i];
+        if (Array.isArray(child) && !split.has(`$Out_Mem_${i}`) && printTrie(child).length > 800000) {
+          split.add(`$Out_Mem_${i}`);
+        }
+      }
+    }
     // The slow guard below can lower `fuel` after this chunk ran; count and
     // report what it actually ran with.
     const ranFuel = fuel;

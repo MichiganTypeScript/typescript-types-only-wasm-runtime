@@ -13,7 +13,7 @@
 //      { kind: "frame", index, rgba, chunks, ms }  frame `index` finished
 //      { kind: "kept", frames }                    frames 0 to frames-1 are the saved run's
 //      { kind: "log", text } | { kind: "end", result } | { kind: "error", text }
-import { start, moduleShape, rgbaFrom, inspectCheckpoint } from "./run.browser.js?v=9";
+import { start, moduleShape, rgbaFrom, inspectCheckpoint } from "./run.browser.js?v=10";
 import * as tsrs from "./tsrs/browser.js";
 import * as tsgo from "./tsgo/tsgo.js?v=5";
 import * as tsgoDoom from "./tsgo/tsgo-doom.js?v=5";
@@ -332,19 +332,14 @@ self.onmessage = async ({ data }) => {
       const hasCkpt = !!pt;
       pt ??= a.resume;
       const inspection = inspectCheckpoint(a.shape, pt);
-      const midRgba = !pt?.done && pt?.memory ? rgbaFrom(a.shape, pt.memory) : null;
-      return post(
-        {
-          kind: "inspected",
-          index: hasCkpt ? (pt.scriptFrame ?? 0) + (pt.done ? 1 : 0) : 0,
-          chunks: !pt?.done ? (pt?.entryChunks ?? 0) : 0,
-          done: !!pt?.done,
-          inspection,
-          bootInspection: a.bootInspection,
-          midRgba,
-        },
-        midRgba ? [midRgba.buffer] : [],
-      );
+      return post({
+        kind: "inspected",
+        index: hasCkpt ? (pt.scriptFrame ?? 0) + (pt.done ? 1 : 0) : 0,
+        chunks: !pt?.done ? (pt?.entryChunks ?? 0) : 0,
+        done: !!pt?.done,
+        inspection,
+        bootInspection: a.bootInspection,
+      });
     }
     if (data.resume) {
       const saved = await readSavedMeta();
@@ -418,20 +413,15 @@ self.onmessage = async ({ data }) => {
     const initPt = resume ?? a.resume;
     const initIndex = resume ? (resume.scriptFrame ?? 0) + (resume.done ? 1 : 0) : 0;
     const initInspection = inspectCheckpoint(a.shape, initPt);
-    const initMidRgba = !initPt?.done && initPt?.memory ? rgbaFrom(a.shape, initPt.memory) : null;
     const initChunks = !initPt?.done ? (initPt?.entryChunks ?? 0) : 0;
-    post(
-      {
-        kind: "inspected",
-        index: initIndex,
-        chunks: initChunks,
-        done: !!initPt?.done,
-        inspection: initInspection,
-        bootInspection: a.bootInspection,
-        midRgba: initMidRgba,
-      },
-      initMidRgba ? [initMidRgba.buffer] : [],
-    );
+    post({
+      kind: "inspected",
+      index: initIndex,
+      chunks: initChunks,
+      done: !!initPt?.done,
+      inspection: initInspection,
+      bootInspection: a.bootInspection,
+    });
     post({ kind: "status", text: `fetching ${checker.label}` });
     await checker.load();
     post({
@@ -458,11 +448,7 @@ self.onmessage = async ({ data }) => {
         const inspection = inspectCheckpoint(a.shape, p);
         if (!p.done) {
           saveCheckpoint(++seq, p);
-          const midRgba = p.memory ? rgbaFrom(a.shape, p.memory) : null;
-          return post(
-            { kind: "progress", index, chunks: p.entryChunks, ms, inspection, midRgba },
-            midRgba ? [midRgba.buffer] : [],
-          );
+          return post({ kind: "progress", index, chunks: p.entryChunks, ms, inspection });
         }
         const rgba = rgbaFrom(a.shape, p.memory, p.result);
         saveFrame(index, rgba);
