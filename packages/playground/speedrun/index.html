@@ -1726,7 +1726,7 @@ function execute(script, saved) {
     if (m.bootInspection) tscBootInspection = m.bootInspection;
     if (m.inspection) {
       tscInspection = m.inspection;
-      tscSubSlideIdx = 0;
+      if (tscSlideAuto) tscSubSlideIdx = 0;
     }
     if (m.kind === "inspected") {
       tscMidFrame = !m.done && (m.chunks > 0 || frames.length > 0);
@@ -1797,6 +1797,8 @@ function execute(script, saved) {
       frames[m.index] = new Uint32Array(m.rgba.buffer);
       frameAt[m.index] = m.ms;
       if (m.chunks > 0) estChunks = m.chunks;
+      if (m.inspection) recordTscChunkInspection(m.chunks || 1, m.inspection);
+      if (tscChunkHistory.length) tscSavedFrameHistories.set(m.index, tscChunkHistory.slice());
       curChunk = 0;
       tscMidFrame = false;
       tscChunkHistory = [];
@@ -2288,11 +2290,18 @@ timeline.addEventListener("wheel", stopFollow, { passive: true });
 timeline.addEventListener("touchmove", stopFollow, { passive: true });
 timeline.addEventListener("keydown", stopFollow);
 timeline.addEventListener("pointerdown", (e) => { if (e.target === timeline) stopFollow(); }); // scrollbar drag
-followBtn.addEventListener("click", () => { tlFollow = true; followBtn.hidden = true; if (checking) { playing = true; playBtn.textContent = "Pause"; } if (frames.length) drawFrame(frames.length - 1); drawTimeline(); doomAudio.syncBgm(); });
+followBtn.addEventListener("click", () => { tlFollow = true; followBtn.hidden = true; if (checking) { playing = true; playBtn.textContent = "Pause"; } if (frames.length) drawFrame(frames.length - 1); enableTscAutoStep(); drawTimeline(); doomAudio.syncBgm(); });
 timeline.addEventListener("click", (e) => {
   const li = e.target.closest("li");
-  if (!li || Number(li.dataset.i) >= frames.length) return;
-  playing = false; playBtn.textContent = "Play"; drawFrame(Number(li.dataset.i));
+  if (!li) return;
+  const idx = Number(li.dataset.i);
+  if (idx === frames.length && (checking || tscMidFrame)) {
+    enableTscAutoStep();
+    return;
+  }
+  if (idx >= frames.length) return;
+  playing = false; playBtn.textContent = "Play"; drawFrame(idx);
+  inspectTscFrame(idx);
   doomAudio.syncBgm(); doomAudio.onFrame(cur, labels[cur] || "");
 });
 
@@ -2584,14 +2593,17 @@ playBtn.addEventListener("click", () => {
 });
 document.getElementById("stepBackBtn").addEventListener("click", () => {
   playing = false; playBtn.textContent = "Play"; drawFrame(cur - 1);
+  inspectTscFrame(cur);
   doomAudio.syncBgm(); doomAudio.onFrame(cur, labels[cur] || "");
 });
 document.getElementById("stepFwdBtn").addEventListener("click", () => {
   playing = false; playBtn.textContent = "Play"; drawFrame(cur + 1);
+  inspectTscFrame(cur);
   doomAudio.syncBgm(); doomAudio.onFrame(cur, labels[cur] || "");
 });
 scrub.addEventListener("input", () => {
   playing = false; playBtn.textContent = "Play"; drawFrame(Number(scrub.value));
+  inspectTscFrame(cur);
   doomAudio.syncBgm();
 });
 
@@ -2911,6 +2923,10 @@ let tscInspection = null;
 let tscBootInspection = null;
 let tscMidFrame = false;
 let tscChunkHistory = [];
+const tscSavedFrameHistories = new Map();
+let tscLockedFrame = -1;
+let tscLockedHistory = null;
+let tscLockedSubText = "";
 let tscSlideIdx = 0;
 let tscSubSlideIdx = 0;
 let tscSlideAuto = true;
@@ -2984,8 +3000,8 @@ function recordTscChunkInspection(chunkNum, insp) {
     tscSubSlideIdx = 0;
   }
 }
-
 function ensureTscChunkHistory() {
+  if (!tscSlideAuto && tscLockedHistory?.length) return tscLockedHistory;
   const insp = tscInspection || tscBootInspection;
   if (!insp) return [];
   const c = Math.max(1, curChunk || 1);
@@ -2993,6 +3009,72 @@ function ensureTscChunkHistory() {
     recordTscChunkInspection(c, insp);
   }
   return tscChunkHistory;
+}
+
+function pauseTscAutoStep() {
+  if (tscSlideAuto) {
+    const liveHist = ensureTscChunkHistory();
+    if (!tscLockedHistory && liveHist.length) {
+      tscLockedHistory = liveHist.slice();
+    }
+    tscSlideAuto = false;
+    tscSlideAutoBtn?.classList.remove("active");
+  }
+}
+
+function enableTscAutoStep() {
+  tscSlideAuto = true;
+  tscLockedFrame = -1;
+  tscLockedHistory = null;
+  tscLockedSubText = "";
+  tscSlideAutoBtn?.classList.add("active");
+  const hist = ensureTscChunkHistory();
+  if (hist.length) {
+    tscSlideIdx = hist.length - 1;
+    tscSubSlideIdx = 0;
+  }
+  updateTscSlideshow(true);
+}
+
+function buildSyntheticFrameHistory(frameIdx) {
+  const saved = tscSavedFrameHistories.get(frameIdx);
+  if (saved?.length) return saved;
+  const baseInsp = tscBootInspection || tscInspection;
+  const liveInsp = tscInspection || tscBootInspection;
+  const allSlides = [...(baseInsp?.slides || []), ...(liveInsp?.slides || [])];
+  const seen = new Set();
+  const unique = [];
+  for (const s of allSlides) {
+    if (!seen.has(s.block)) {
+      seen.add(s.block);
+      unique.push(s);
+    }
+  }
+  if (!unique.length) return [];
+  return unique.map((s, k) => ({
+    chunk: k + 1,
+    headBlock: s.block,
+    fnName: s.fnName,
+    slides: [s, ...unique.filter((x) => x.block !== s.block)].slice(0, 6),
+    globals: liveInsp?.globals || [],
+    locals: liveInsp?.locals || [],
+  }));
+}
+
+function inspectTscFrame(frameIdx) {
+  if (frameIdx < 0 || frameIdx >= frames.length) return;
+  const hist = buildSyntheticFrameHistory(frameIdx);
+  if (!hist.length) return;
+  tscSlideAuto = false;
+  tscSlideAutoBtn?.classList.remove("active");
+  tscLockedFrame = frameIdx;
+  tscLockedHistory = hist;
+  const lbl = labels[frameIdx] ? ` · input: ${labels[frameIdx]}` : "";
+  const msInfo = frameAt[frameIdx] ? ` · checked in ${(frameAt[frameIdx] / 1000).toFixed(1)}s` : "";
+  tscLockedSubText = `Inspecting Frame ${frameIdx + 1}/${labels.length}${lbl}${msInfo} (Auto-Step off — click Auto-Step to follow live tsc)`;
+  tscSlideIdx = Math.min(frameIdx % hist.length, hist.length - 1);
+  tscSubSlideIdx = 0;
+  updateTscSlideshow(true);
 }
 
 function renderActiveTscSlide() {
@@ -3006,9 +3088,11 @@ function renderActiveTscSlide() {
   if (tscSubSlideIdx >= slides.length) tscSubSlideIdx = 0;
   if (tscSubSlideIdx < 0) tscSubSlideIdx = slides.length - 1;
   const s = slides[tscSubSlideIdx];
-  const target = Math.max(estChunks, curChunk + 2);
+  const target = tscLockedFrame >= 0 ? history.length : Math.max(estChunks, curChunk + 2);
   if (tscSlideCountEl) {
-    tscSlideCountEl.textContent = `Chunk ${entry.chunk} / ~${target}`;
+    tscSlideCountEl.textContent = tscLockedFrame >= 0
+      ? `Frame ${tscLockedFrame + 1} · ${tscSlideIdx + 1}/${history.length}`
+      : `Chunk ${entry.chunk} / ~${target}`;
   }
   if (tscSlideFnBadgeEl) {
     tscSlideFnBadgeEl.textContent = `${s.fnName}() · $b${s.block}`;
@@ -3033,12 +3117,16 @@ function renderActiveTscSlide() {
   tabBtns.forEach((btn, i) => btn.classList.toggle("active", i === tscSlideIdx));
 }
 
-function updateTscSlideshow() {
+function updateTscSlideshow(forceRender = false) {
   const insp = tscInspection || tscBootInspection;
   const isDone = !checking && runStatus === "finished" && frames.length > 0;
   const isStopped = !checking && !isDone;
   if (tscSlideDotEl) {
     tscSlideDotEl.className = "rec-dot" + (isDone ? " done" : isStopped ? " stopped" : "");
+  }
+  if (!tscSlideAuto && !forceRender && tscLockedHistory?.length) {
+    // When Auto-Step is off, keep the user's selected frame/chunk frozen on screen.
+    return;
   }
   if (insp) {
     const cNum = curChunk || 1;
@@ -3047,18 +3135,20 @@ function updateTscSlideshow() {
     if (tscSlideAuto) {
       tscSlideIdx = history.length - 1;
     }
-    if (checking) {
-      tscSlideSubEl.textContent = `Frame ${frames.length + 1} · chunk ${cNum}/~${target}${lastTscText ? ` (${lastTscText})` : stageText ? ` (${stageText})` : ""} — evaluating ${insp.fnName}() at basic block $b${insp.headBlock}`;
+    if (!tscSlideAuto && tscLockedSubText) {
+      tscSlideSubEl.textContent = tscLockedSubText;
+    } else if (checking) {
+      const pausedNote = !tscSlideAuto ? " (Auto-Step paused)" : "";
+      tscSlideSubEl.textContent = `Frame ${frames.length + 1} · chunk ${cNum}/~${target}${lastTscText ? ` (${lastTscText})` : stageText ? ` (${stageText})` : ""} — evaluating ${insp.fnName}() at basic block $b${insp.headBlock}${pausedNote}`;
     } else if (tscMidFrame) {
-      tscSlideSubEl.textContent = `Checkpoint at Frame ${frames.length + 1} (chunk ${cNum}/~${target}, inside ${insp.fnName}() $b${insp.headBlock}). Click any chunk tab or editor tic line.`;
+      tscSlideSubEl.textContent = `Checkpoint at Frame ${frames.length + 1} (chunk ${cNum}/~${target}, inside ${insp.fnName}() $b${insp.headBlock}). Click any chunk tab, timeline row, or editor tic line.`;
     } else {
-      tscSlideSubEl.textContent = `Inspecting ${insp.fnName}() ($b${insp.headBlock}) in doom-keys.cfg.ts. Hover or click any tic line in the TypeScript editor below to preview its frame.`;
+      tscSlideSubEl.textContent = `Inspecting ${insp.fnName}() ($b${insp.headBlock}) in doom-keys.cfg.ts. Click any timeline row or editor tic line to inspect its frame.`;
     }
 
-    // Render chunk tabs (#1 .. #cNum of current frame)
     tscSlideTabsEl.innerHTML = history.map((h, i) => {
       const s0 = h.slides[0];
-      return `<button type="button" class="tsc-slide-tab${i === tscSlideIdx ? ' active' : ''}" data-idx="${i}" title="Chunk ${h.chunk} of ~${target}: ${escapeHtml(h.fnName)}() ($b${escapeHtml(h.headBlock)}, lines ${s0.startLine}–${s0.endLine})">#${h.chunk} $b${escapeHtml(h.headBlock)} · ${escapeHtml(h.fnName)}</button>`;
+      return `<button type="button" class="tsc-slide-tab${i === tscSlideIdx ? ' active' : ''}" data-idx="${i}" title="Chunk ${h.chunk}: ${escapeHtml(h.fnName)}() ($b${escapeHtml(h.headBlock)}, lines ${s0.startLine}–${s0.endLine})">#${h.chunk} $b${escapeHtml(h.headBlock)} · ${escapeHtml(h.fnName)}</button>`;
     }).join("");
     renderActiveTscSlide();
   }
@@ -3067,41 +3157,42 @@ function updateTscSlideshow() {
 tscSlideTabsEl?.addEventListener("click", (e) => {
   const btn = e.target.closest(".tsc-slide-tab");
   if (!btn) return;
+  pauseTscAutoStep();
   tscSlideIdx = Number(btn.dataset.idx) || 0;
   tscSubSlideIdx = 0;
-  renderActiveTscSlide();
+  updateTscSlideshow(true);
 });
 
 tscSlidePrevBtn?.addEventListener("click", () => {
-  tscSlideAuto = false;
-  tscSlideAutoBtn?.classList.remove("active");
-  if (tscChunkHistory.length > 1) {
-    tscSlideIdx = (tscSlideIdx - 1 + tscChunkHistory.length) % tscChunkHistory.length;
+  pauseTscAutoStep();
+  const history = ensureTscChunkHistory();
+  if (history.length > 1) {
+    tscSlideIdx = (tscSlideIdx - 1 + history.length) % history.length;
     tscSubSlideIdx = 0;
   } else {
     tscSubSlideIdx--;
   }
-  renderActiveTscSlide();
+  updateTscSlideshow(true);
 });
 
 tscSlideNextBtn?.addEventListener("click", () => {
-  tscSlideAuto = false;
-  tscSlideAutoBtn?.classList.remove("active");
-  if (tscChunkHistory.length > 1) {
-    tscSlideIdx = (tscSlideIdx + 1) % tscChunkHistory.length;
+  pauseTscAutoStep();
+  const history = ensureTscChunkHistory();
+  if (history.length > 1) {
+    tscSlideIdx = (tscSlideIdx + 1) % history.length;
     tscSubSlideIdx = 0;
   } else {
     tscSubSlideIdx++;
   }
-  renderActiveTscSlide();
+  updateTscSlideshow(true);
 });
 
 tscSlideAutoBtn?.addEventListener("click", () => {
-  tscSlideAuto = !tscSlideAuto;
-  tscSlideAutoBtn.classList.toggle("active", tscSlideAuto);
-  if (tscSlideAuto && tscChunkHistory.length) {
-    tscSlideIdx = tscChunkHistory.length - 1;
-    renderActiveTscSlide();
+  if (tscSlideAuto) {
+    pauseTscAutoStep();
+    updateTscSlideshow(true);
+  } else {
+    enableTscAutoStep();
   }
 });
 
@@ -3116,7 +3207,6 @@ setInterval(() => {
     renderActiveTscSlide();
   }
 }, 2200);
-
 function requestIdleInspection() {
   if (checking || tscInspection) return;
   const w = new Worker("checker-worker.js?v=10", { type: "module" });
@@ -3515,12 +3605,16 @@ monacoEditor.onMouseDown((e) => {
       ? cur + 1
       : entry.startFrame;
     drawFrame(targetFrame);
+    inspectTscFrame(targetFrame);
     doomAudio.syncBgm();
     doomAudio.onFrame(cur, labels[cur] || "");
-  } else if (frames.length > 0 && frames.length >= entry.startFrame && frames.length <= entry.endFrame) {
-    playing = false;
-    playBtn.textContent = "Play";
-    drawFrame(frames.length - 1);
+  } else if (frames.length >= entry.startFrame && frames.length <= entry.endFrame) {
+    enableTscAutoStep();
+    if (frames.length > 0) {
+      playing = false;
+      playBtn.textContent = "Play";
+      drawFrame(frames.length - 1);
+    }
   }
 });
 
