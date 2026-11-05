@@ -13,7 +13,7 @@
 //      { kind: "frame", index, rgba, chunks, ms }  frame `index` finished
 //      { kind: "kept", frames }                    frames 0 to frames-1 are the saved run's
 //      { kind: "log", text } | { kind: "end", result } | { kind: "error", text }
-import { start, moduleShape, rgbaFrom, inspectCheckpoint } from "./run.browser.js?v=10";
+import { start, moduleShape, rgbaFrom, inspectCheckpoint } from "./run.browser.js?v=11";
 import * as tsrs from "./tsrs/browser.js";
 import * as tsgo from "./tsgo/tsgo.js?v=5";
 import * as tsgoDoom from "./tsgo/tsgo-doom.js?v=5";
@@ -182,8 +182,8 @@ const readCheckpoint = async (runId) => {
   return saved.sort((a, b) => b.seq - a.seq)[0] ?? null;
 };
 
-// Deletes orphaned run files not referenced by any tab's `meta*.json` or `keep`.
-const clearRun = async (keep, endName = "end.json") => {
+// Deletes orphaned run files not referenced by any active tab's `meta*.json` or `keep`.
+const clearRun = async (keep, endName = "end.json", currentMetaName = "meta.json", currentRunId = null) => {
   const dir = await runDir;
   if (!dir) return;
   await dir.removeEntry(endName).catch(() => {});
@@ -193,8 +193,13 @@ const clearRun = async (keep, endName = "end.json") => {
   for await (const name of dir.keys()) {
     names.push(name);
     if (/^meta(?:-[\w-]+)?\.json$/.test(name)) {
+      if (name === currentMetaName || name === "meta.json") continue;
       try {
         const m = JSON.parse((await readText(name)) ?? "null");
+        if (!m || (currentRunId && m.runId === currentRunId) || m.files === keep) {
+          await dir.removeEntry(name).catch(() => {});
+          continue;
+        }
         if (m?.files) activeFiles.add(m.files);
         if (m?.runId) activeFiles.add(m.runId);
       } catch {}
@@ -211,9 +216,22 @@ const clearRun = async (keep, endName = "end.json") => {
     }
     if (/^(?:meta|end)(?:-[\w-]+)?\.json$/.test(name)) continue;
     if (![...activeFiles].some((f) => name.startsWith(f + "-"))) {
+      try {
+        const h = await openHandleRetry(name, 2);
+        if (h) { try { h.truncate(0); h.flush(); } finally { h.close(); } }
+      } catch {}
       await dir.removeEntry(name).catch(() => {});
     }
   }
+  // Remove any duplicate unfinished history/<id>.rgba for the active in-progress run
+  try {
+    const root = await navigator.storage.getDirectory();
+    const hDir = await root.getDirectoryHandle("history", { create: false });
+    for (const id of new Set([keep, currentRunId].filter(Boolean))) {
+      await hDir.removeEntry(`${id}.rgba`).catch(() => {});
+      await hDir.removeEntry(`${id}.json`).catch(() => {});
+    }
+  } catch {}
 };
 
 const readBytesSlice = async (name, len) => {
@@ -229,11 +247,20 @@ const readBytesSlice = async (name, len) => {
 
 // Set up by openStore before the run; null when OPFS is unavailable.
 let store = null;
+const closeStore = () => {
+  if (!store) return;
+  for (const h of [store.frames, ...(store.ckpts || [])]) {
+    try { h?.flush?.(); } catch {}
+    try { h?.close?.(); } catch {}
+  }
+  store = null;
+};
 // `kept` frames of an earlier run with these files stay; everything past them is cut.
 // If another tab holds `files` open (`NoModificationAllowedError`), forks to `forkRunId`
 // and copies the `kept` prefix bytes so both tabs persist independently.
 const openStore = async (files, kept = 0, _boundsIndex = [], forkRunId = null) => {
-  await clearRun(files);
+  closeStore();
+  await clearRun(files, "end.json", "meta.json", forkRunId);
   try {
     const [frames, ckpt0, ckpt1] = await Promise.all(
       ["frames.rgba", "ckpt-0.json", "ckpt-1.json"].map((n) => openHandleRetry(`${files}-${n}`, 15)),
@@ -396,10 +423,11 @@ self.onmessage = async ({ data }) => {
     if (forked) runId = files;
     const metaPayload = JSON.stringify({ runId, files, meta: savedMeta, keyScript, checker: checkerName });
     await writeFile(metaName, metaPayload).catch(() => {});
-    if (metaName !== "meta.json" && !forked) await writeFile("meta.json", metaPayload).catch(() => {});
-    if (!data.resume || forked) {
-      await clearRun(files, endName);
-      if (resume) seq = Math.max(seq, (await readCheckpoint(files))?.seq ?? 0), saveCheckpoint(++seq, resume);
+    if (metaName !== "meta.json") await writeFile("meta.json", metaPayload).catch(() => {});
+    await clearRun(files, endName, metaName, runId);
+    if (resume) {
+      seq = Math.max(seq, (await readCheckpoint(files))?.seq ?? 0);
+      saveCheckpoint(++seq, resume);
     }
     if (!data.resume) {
       post({ kind: "kept", frames: kept, elapsedMs: baseMs });
@@ -469,5 +497,7 @@ self.onmessage = async ({ data }) => {
     post({ kind: "end", result: { chunks: result.chunks, failed: result.failed, ms: totalMs } });
   } catch (e) {
     post({ kind: "error", text: String(e?.stack ?? e) });
+  } finally {
+    closeStore();
   }
 };

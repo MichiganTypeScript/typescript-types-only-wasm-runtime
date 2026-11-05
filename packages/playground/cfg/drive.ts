@@ -393,21 +393,17 @@ const BLOCK = /^"?(?:trap_)?\d+_\d+"?$/;
 // so both styles are words. Either one pastes back into the next chunk as is.
 // `$IN` is the alias the chunk was called with: subtrees it never wrote print
 // under that name, and the parser resolves them against the incoming trie.
-const TOKEN = `(?:[[\\],\\s]|\\$Zero|\\$Absent|\\$IN|\\$InitialMemory|\\$A\\d+|["']u["']|"[01]{32}"|'[01]{32}')`;
-const STATE = new RegExp(`^${TOKEN}+$`);
+const TOKEN_STEP = /(?:[[\],\s]+|\$Zero|\$Absent|\$IN|\$InitialMemory|\$A\d+|["']u["']|"[01]{32}"|'[01]{32}')/y;
 
-/// The first offset the state stops being a state at. This has to walk the same
-/// token list the check itself uses: a list that is missing a token the compiler
-/// legitimately emits reports the first one of those instead of the thing that
-/// actually broke it.
+/// The first offset the state stops being a state at. Uses a sticky (/y) step
+/// loop rather than `^${TOKEN}+$` so a 15MB+ state string (~1.5M tokens) never
+/// overflows the JS engine's RegExp backtracking stack.
 const offence = (state: string): number => {
-  const token = new RegExp(TOKEN, "g");
   let at = 0;
   while (at < state.length) {
-    token.lastIndex = at;
-    const one = token.exec(state);
-    if (!one || one.index !== at) return at;
-    at = token.lastIndex;
+    TOKEN_STEP.lastIndex = at;
+    if (!TOKEN_STEP.test(state)) return at;
+    at = TOKEN_STEP.lastIndex;
   }
   return at;
 };
@@ -420,8 +416,8 @@ export const degraded = (
   globals = "[]",
 ): string | undefined => {
   if (tag !== '"s"' && tag !== '"r"') return `result tag is ${tag.slice(0, 40)}`;
-  if (!STATE.test(state)) {
-    const at = offence(state);
+  const at = offence(state);
+  if (!state.length || at < state.length) {
     return `state has ${JSON.stringify(state.slice(at, at + 48))} at ${at} of ${state.length}`;
   }
   if (tag === '"s"') {
