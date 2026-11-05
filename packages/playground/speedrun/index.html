@@ -1722,154 +1722,190 @@ function execute(script, saved) {
   stageText = saved ? "resuming from checkpoint" : "loading the checker";
   runT0 = performance.now() - (saved?.elapsedMs ?? 0);
   scrub.max = String(Math.max(0, frames.length - 1));
-  worker = new Worker("checker-worker.js?v=11", { type: "module" });
-  worker.onmessage = ({ data: m }) => {
-    if (m.bootInspection) tscBootInspection = m.bootInspection;
-    if (m.inspection) {
-      tscInspection = m.inspection;
-      if (tscSlideAuto) tscSubSlideIdx = 0;
-    }
-    if (m.kind === "inspected") {
-      tscMidFrame = !m.done && (m.chunks > 0 || frames.length > 0);
-      if (m.chunks > 0) curChunk = m.chunks;
-      recordTscChunkInspection(curChunk || 1, tscInspection || tscBootInspection);
-      updateTscSlideshow();
-      updateEditorStatusDecorations();
-      drawHud();
-      return;
-    }
-    if (m.kind === "status") {
-      if (m.text.startsWith("tsc ")) {
-        lastTscText = m.text;
+  let autoRetryCount = 0;
+  function spawnWorker(isResume) {
+    worker?.terminate();
+    const w = new Worker("checker-worker.js?v=12", { type: "module" });
+    worker = w;
+    const tryAutoRecover = (errText) => {
+      if (worker !== w) return true;
+      if (!/quota|storage|space|disk|wasm unreachable trap/i.test(String(errText ?? "")) && autoRetryCount < 3) {
+        autoRetryCount++;
+        w.terminate();
+        if (worker === w) worker = null;
+        stageText = "recycling worker memory…";
+        progress = `frame ${frames.length + 1}: recycling worker memory and resuming from checkpoint`;
+        drawHud();
+        setTimeout(() => { if (checking) spawnWorker(true); }, 350);
+        return true;
+      }
+      return false;
+    };
+    w.onerror = (ev) => {
+      const msg = ev?.message || "Worker runtime error";
+      if (tryAutoRecover(msg)) {
+        ev?.preventDefault?.();
+      }
+    };
+    w.onmessage = ({ data: m }) => {
+      if (worker !== w) return;
+      if (m.kind === "recycle") {
+        w.terminate();
+        if (worker === w) worker = null;
+        setTimeout(() => { if (checking) spawnWorker(true); }, 60);
+        return;
+      }
+      if (m.bootInspection) tscBootInspection = m.bootInspection;
+      if (m.inspection) {
+        tscInspection = m.inspection;
+        if (tscSlideAuto) tscSubSlideIdx = 0;
+      }
+      if (m.kind === "inspected") {
+        tscMidFrame = !m.done && (m.chunks > 0 || frames.length > 0);
+        if (m.chunks > 0) curChunk = m.chunks;
+        recordTscChunkInspection(curChunk || 1, tscInspection || tscBootInspection);
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+        drawHud();
+        return;
+      }
+      if (m.kind === "status") {
+        if (m.text.startsWith("tsc ")) {
+          lastTscText = m.text;
+          stageText = "";
+          const target = Math.max(estChunks, curChunk + 2);
+          progress = `frame ${frames.length + 1}: chunk ${curChunk || 1}/~${target} (${lastTscText})`;
+        } else if (m.text === "type-checking chunk 1" || m.text.startsWith("resuming at frame")) {
+          stageText = "";
+          if (typeof m.chunks === "number" && m.chunks > 0) curChunk = m.chunks;
+          const target = Math.max(estChunks, curChunk + 2);
+          progress = `frame ${frames.length + 1}: checking chunk ${curChunk || 1} of ~${target}`;
+        } else {
+          stageText = m.text;
+          progress = m.text;
+        }
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "kept") {
+        curChunk = 0;
+        tscChunkHistory = [];
+        stageText = "";
+        // The worker kept the old run's frames up to where the scripts differ.
+        frames = oldFrames.slice(0, m.frames);
+        frameAt = [];
+        // This page may not have them, if it opened on a different script.
+        if (oldFrames.length < m.frames) {
+          restoreRun().then((r) => {
+            if (worker !== w || !r) return;
+            for (let i = 0; i < m.frames; i++) frames[i] ??= r.frames[i];
+            scrub.max = String(Math.max(0, frames.length - 1));
+            drawFrame(Math.min(cur, frames.length - 1));
+            updateEditorStatusDecorations();
+          });
+        }
+        cur = Math.min(cur, Math.max(0, frames.length - 1));
+        scrub.max = String(Math.max(0, frames.length - 1));
+        runT0 = performance.now() - (m.elapsedMs ?? 0);
+        progress = m.frames ? `continuing after frame ${m.frames}` : "type-checking chunk 1";
+        if (m.frames) drawFrame(frames.length - 1);
+        else {
+          ctx.clearRect(0, 0, 960, 600);
+          scrub.value = "0";
+          frameLabel.textContent = "0 / 0";
+        }
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "progress") {
+        autoRetryCount = 0;
+        curChunk = m.chunks;
+        tscMidFrame = true;
         stageText = "";
         const target = Math.max(estChunks, curChunk + 2);
-        progress = `frame ${frames.length + 1}: chunk ${curChunk || 1}/~${target} (${lastTscText})`;
-      } else if (m.text === "type-checking chunk 1" || m.text.startsWith("resuming at frame")) {
+        progress = `frame ${m.index + 1}: chunk ${m.chunks} of ~${target} checked`;
+        recordTscChunkInspection(curChunk, m.inspection || tscInspection);
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "frame") {
+        autoRetryCount = 0;
+        frames[m.index] = new Uint32Array(m.rgba.buffer);
+        frameAt[m.index] = m.ms;
+        if (m.chunks > 0) estChunks = m.chunks;
+        if (m.inspection) recordTscChunkInspection(m.chunks || 1, m.inspection);
+        if (tscChunkHistory.length) tscSavedFrameHistories.set(m.index, tscChunkHistory.slice());
+        curChunk = 0;
+        tscMidFrame = false;
+        tscChunkHistory = [];
         stageText = "";
-        if (typeof m.chunks === "number" && m.chunks > 0) curChunk = m.chunks;
-        const target = Math.max(estChunks, curChunk + 2);
-        progress = `frame ${frames.length + 1}: checking chunk ${curChunk || 1} of ~${target}`;
-      } else {
-        stageText = m.text;
-        progress = m.text;
+        progress = `frame ${m.index + 1} checked in ${m.chunks} chunks`;
+        scrub.max = String(frames.length - 1);
+        // Follow the newest frame unless the user is scrubbing back.
+        if (playing && cur >= m.index - 1) {
+          drawFrame(m.index);
+        }
+        if (typeof doomAudio !== "undefined") {
+          doomAudio.onFrame(m.index, labels[m.index] || "", true);
+          doomAudio.syncBgm();
+        }
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "end" && m.result.failed) {
+        if (tryAutoRecover(m.result.failed)) return;
+        // drive.ts gave up on a chunk: the run stopped early, it did not finish.
+        checking = false;
+        w.terminate();
+        if (worker === w) worker = null;
+        stageText = "";
+        progress = `checker failed after ${frames.length} frames`;
+        pauseHint = formatPauseHint(m.result.failed);
+        playing = false;
+        playBtn.textContent = "Play";
+        drawFrame(frames.length - 1);
+        console.error(m.result.failed);
+        showToast(`The checker failed on frame ${frames.length + 1}: ${m.result.failed.split("\n")[0]}`);
+        archiveRun(runStatus = "failed");
+        if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "end") {
+        checking = false;
+        w.terminate();
+        if (worker === w) worker = null;
+        curChunk = 0;
+        tscMidFrame = false;
+        stageText = "";
+        progress = `done: ${frames.length} frames in ${fmtTime(m.result.ms)}`;
+        archiveRun(runStatus = "finished");
+        if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "error") {
+        if (tryAutoRecover(m.text)) return;
+        checking = false;
+        w.terminate();
+        if (worker === w) worker = null;
+        stageText = "";
+        progress = "checker error";
+        pauseHint = formatPauseHint(m.text);
+        archiveRun(runStatus = "failed");
+        console.error(m.text);
+        showToast(m.text.split("\n")[0]);
+        if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
       }
-      updateTscSlideshow();
-      updateEditorStatusDecorations();
-    } else if (m.kind === "kept") {
-      curChunk = 0;
-      tscChunkHistory = [];
-      stageText = "";
-      // The worker kept the old run's frames up to where the scripts differ.
-      frames = oldFrames.slice(0, m.frames);
-      frameAt = [];
-      // This page may not have them, if it opened on a different script.
-      if (oldFrames.length < m.frames) {
-        const w = worker;
-        restoreRun().then((r) => {
-          if (worker !== w || !r) return;
-          for (let i = 0; i < m.frames; i++) frames[i] ??= r.frames[i];
-          scrub.max = String(Math.max(0, frames.length - 1));
-          drawFrame(Math.min(cur, frames.length - 1));
-          updateEditorStatusDecorations();
-        });
-      }
-      cur = Math.min(cur, Math.max(0, frames.length - 1));
-      scrub.max = String(Math.max(0, frames.length - 1));
-      runT0 = performance.now() - (m.elapsedMs ?? 0);
-      progress = m.frames ? `continuing after frame ${m.frames}` : "type-checking chunk 1";
-      if (m.frames) drawFrame(frames.length - 1);
-      else {
-        ctx.clearRect(0, 0, 960, 600);
-        scrub.value = "0";
-        frameLabel.textContent = "0 / 0";
-      }
-      updateTscSlideshow();
-      updateEditorStatusDecorations();
-    } else if (m.kind === "progress") {
-      curChunk = m.chunks;
-      tscMidFrame = true;
-      stageText = "";
-      const target = Math.max(estChunks, curChunk + 2);
-      progress = `frame ${m.index + 1}: chunk ${m.chunks} of ~${target} checked`;
-      recordTscChunkInspection(curChunk, m.inspection || tscInspection);
-      updateTscSlideshow();
-      updateEditorStatusDecorations();
-    } else if (m.kind === "frame") {
-      frames[m.index] = new Uint32Array(m.rgba.buffer);
-      frameAt[m.index] = m.ms;
-      if (m.chunks > 0) estChunks = m.chunks;
-      if (m.inspection) recordTscChunkInspection(m.chunks || 1, m.inspection);
-      if (tscChunkHistory.length) tscSavedFrameHistories.set(m.index, tscChunkHistory.slice());
-      curChunk = 0;
-      tscMidFrame = false;
-      tscChunkHistory = [];
-      stageText = "";
-      progress = `frame ${m.index + 1} checked in ${m.chunks} chunks`;
-      scrub.max = String(frames.length - 1);
-      // Follow the newest frame unless the user is scrubbing back.
-      if (playing && cur >= m.index - 1) {
-        drawFrame(m.index);
-      }
-      if (typeof doomAudio !== "undefined") {
-        doomAudio.onFrame(m.index, labels[m.index] || "", true);
-        doomAudio.syncBgm();
-      }
-      updateTscSlideshow();
-      updateEditorStatusDecorations();
-    } else if (m.kind === "end" && m.result.failed) {
-      // drive.ts gave up on a chunk: the run stopped early, it did not finish.
-      checking = false;
-      worker?.terminate();
-      worker = null;
-      stageText = "";
-      progress = `checker failed after ${frames.length} frames`;
-      pauseHint = formatPauseHint(m.result.failed);
-      playing = false;
-      playBtn.textContent = "Play";
-      drawFrame(frames.length - 1);
-      console.error(m.result.failed);
-      showToast(`The checker failed on frame ${frames.length + 1}: ${m.result.failed.split("\n")[0]}`);
-      archiveRun(runStatus = "failed");
-      if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
-      updateTscSlideshow();
-      updateEditorStatusDecorations();
-    } else if (m.kind === "end") {
-      checking = false;
-      worker?.terminate();
-      worker = null;
-      curChunk = 0;
-      tscMidFrame = false;
-      stageText = "";
-      progress = `done: ${frames.length} frames in ${fmtTime(m.result.ms)}`;
-      archiveRun(runStatus = "finished");
-      if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
-      updateTscSlideshow();
-      updateEditorStatusDecorations();
-    } else if (m.kind === "error") {
-      checking = false;
-      worker?.terminate();
-      worker = null;
-      stageText = "";
-      progress = "checker error";
-      pauseHint = formatPauseHint(m.text);
-      archiveRun(runStatus = "failed");
-      console.error(m.text);
-      showToast(m.text.split("\n")[0]);
-      if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
-      updateTscSlideshow();
-      updateEditorStatusDecorations();
-    }
-    if (!frames.length || m.kind !== "frame") drawHud();
-  };
-  if (saved) return worker.postMessage({ resume: true, tabId: TAB_ID });
-  worker.postMessage({
-    runId: runKey,
-    tabId: TAB_ID,
-    checker: checkerSel.value,
-    keyScript: script.map((st) => (st.poke ? { keys: st.keys, poke: st.poke } : st.keys)),
-    meta: { t: editor.value, x: Number(fpsSel.value), labels, startedAt },
-    continue: true,
-  });
+      if (!frames.length || m.kind !== "frame") drawHud();
+    };
+    if (isResume) return w.postMessage({ resume: true, tabId: TAB_ID });
+    w.postMessage({
+      runId: runKey,
+      tabId: TAB_ID,
+      checker: checkerSel.value,
+      keyScript: script.map((st) => (st.poke ? { keys: st.keys, poke: st.poke } : st.keys)),
+      meta: { t: editor.value, x: Number(fpsSel.value), labels, startedAt },
+      continue: true,
+    });
+  }
+  spawnWorker(!!saved);
 }
 
 const fmtTime = (ms) => {
@@ -3216,7 +3252,7 @@ setInterval(() => {
 }, 2200);
 function requestIdleInspection() {
   if (checking || tscInspection) return;
-  const w = new Worker("checker-worker.js?v=11", { type: "module" });
+  const w = new Worker("checker-worker.js?v=12", { type: "module" });
   w.onmessage = ({ data: m }) => {
     if (m.kind === "inspected") {
       if (m.bootInspection) tscBootInspection = m.bootInspection;

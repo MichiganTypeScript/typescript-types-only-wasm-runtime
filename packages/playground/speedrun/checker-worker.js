@@ -13,7 +13,7 @@
 //      { kind: "frame", index, rgba, chunks, ms }  frame `index` finished
 //      { kind: "kept", frames }                    frames 0 to frames-1 are the saved run's
 //      { kind: "log", text } | { kind: "end", result } | { kind: "error", text }
-import { start, moduleShape, rgbaFrom, inspectCheckpoint } from "./run.browser.js?v=11";
+import { start, moduleShape, rgbaFrom, inspectCheckpoint } from "./run.browser.js?v=12";
 import * as tsrs from "./tsrs/browser.js";
 import * as tsgo from "./tsgo/tsgo.js?v=5";
 import * as tsgoDoom from "./tsgo/tsgo-doom.js?v=5";
@@ -460,6 +460,9 @@ self.onmessage = async ({ data }) => {
     });
     const t0 = performance.now();
     let index = initIndex;
+    let framesInWorker = 0;
+    let lastMemBytes = 0;
+    const RECYCLE_SIGNAL = "__RECYCLE_WORKER__";
     const result = await start({
       tsc: checker.tsc,
       moduleText: a.moduleText,
@@ -483,20 +486,33 @@ self.onmessage = async ({ data }) => {
         saveBound(index, saveCheckpoint(++seq, p));
         post({ kind: "frame", index, rgba, chunks: p.entryChunks, ms, inspection }, [rgba.buffer]);
         index++;
+        framesInWorker++;
+        if (index < keyScript.length && (framesInWorker >= 40 || lastMemBytes > 1500 * 1024 * 1024)) {
+          throw new Error(RECYCLE_SIGNAL);
+        }
       },
       onLog: (t) => post({ kind: "log", text: t }),
-      onCheck: (ms, n, memBytes) => post({
-        kind: "status",
-        text: `tsc ${ms.toFixed(0)} ms, ${n} probes${memBytes ? `, ${(memBytes / 1073741824).toFixed(2)} GB` : ""}`,
-        memBytes,
-      }),
+      onCheck: (ms, n, memBytes) => {
+        if (memBytes) lastMemBytes = memBytes;
+        post({
+          kind: "status",
+          text: `tsc ${ms.toFixed(0)} ms, ${n} probes${memBytes ? `, ${(memBytes / 1073741824).toFixed(2)} GB` : ""}`,
+          memBytes,
+        });
+      },
     });
     const totalMs = baseMs + (performance.now() - t0);
+    closeStore();
     // A failed run is not finished: leave end.json out so a reload retries from the checkpoint.
     if (!result.failed) await writeFile(endName, JSON.stringify({ ms: Math.round(totalMs) })).catch(() => {});
     post({ kind: "end", result: { chunks: result.chunks, failed: result.failed, ms: totalMs } });
   } catch (e) {
-    post({ kind: "error", text: String(e?.stack ?? e) });
+    closeStore();
+    if (String(e?.message ?? e).includes("__RECYCLE_WORKER__")) {
+      post({ kind: "recycle" });
+    } else {
+      post({ kind: "error", text: String(e?.stack ?? e) });
+    }
   } finally {
     closeStore();
   }
