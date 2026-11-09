@@ -155,40 +155,35 @@ export const decodeCheckpoint = (
       return null;
     }
   }
-  if (u8.byteLength < CheckpointStruct.size) return null;
+  if (u8.byteLength < CheckpointStruct.byteSize) return null;
   try {
-    const hdr = CheckpointStruct.view(u8, { baseOffset: 0 });
+    const hdr = CheckpointStruct.viewHeader(u8);
     if (hdr.magic !== CKPT_MAGIC) return null;
     const byteLen = hdr.byteLen;
-    if (byteLen < CheckpointStruct.size || byteLen > (totalByteLen ?? u8.byteLength)) return null;
-    if (totalByteLen !== undefined) {
-      const point: any = { done: hdr.done, chunks: hdr.chunks };
-      if (hdr.scriptFrame !== null) point.scriptFrame = hdr.scriptFrame;
-      if (hdr.entryChunks !== null) point.entryChunks = hdr.entryChunks;
-      if (hdr.evalMs !== null) point.evalMs = hdr.evalMs;
-      if (hdr.elapsedMs !== null) point.elapsedMs = hdr.elapsedMs;
-      if (hdr.fuel !== null) point.fuel = hdr.fuel;
-      if (hdr.capFail !== null) point.capFail = hdr.capFail;
-      return { seq: hdr.seq, point };
-    }
-    const o = CheckpointStruct.view(u8.subarray(0, byteLen), { baseOffset: 0 }).toObject();
-    const point: any = {
-      done: o.done,
-      call: o.call,
-      memory: o.memory,
-      frames: o.frames,
-      globals: o.globals,
-      chunks: o.chunks,
-    };
+    if (byteLen < CheckpointStruct.byteSize || byteLen > (totalByteLen ?? u8.byteLength)) return null;
+    const o = totalByteLen !== undefined ? hdr.toObject() : CheckpointStruct.view(u8.subarray(0, byteLen)).toObject();
+    const point: any =
+      "memory" in o
+        ? {
+            done: o.done,
+            call: o.call,
+            memory: o.memory,
+            frames: o.frames,
+            globals: o.globals,
+            chunks: o.chunks,
+          }
+        : { done: o.done, chunks: o.chunks };
     if (o.scriptFrame !== null) point.scriptFrame = o.scriptFrame;
     if (o.entryChunks !== null) point.entryChunks = o.entryChunks;
     if (o.evalMs !== null) point.evalMs = o.evalMs;
     if (o.elapsedMs !== null) point.elapsedMs = o.elapsedMs;
-    if (o.split.length > 0) point.split = o.split;
     if (o.fuel !== null) point.fuel = o.fuel;
     if (o.capFail !== null) point.capFail = o.capFail;
-    if (o.result) point.result = o.result;
-    if (o.hasPrevResult) point.prevResult = o.prevResult;
+    if ("memory" in o) {
+      if (o.split.length > 0) point.split = o.split;
+      if (o.result) point.result = o.result;
+      if (o.hasPrevResult) point.prevResult = o.prevResult;
+    }
     return { seq: o.seq, point };
   } catch {
     return null;
@@ -237,13 +232,9 @@ export const decodeInspection = (
   input: Uint8Array | ArrayBuffer | CheckpointInspection | null | undefined,
 ): CheckpointInspection | null => {
   if (!input) return null;
-  if (input instanceof Uint8Array) {
-    if (input.byteLength < 44) return null;
-    return InspectionStruct.view(input, { baseOffset: 0 }).toObject() as unknown as CheckpointInspection;
-  }
-  if (input instanceof ArrayBuffer) {
-    if (input.byteLength < 44) return null;
-    return InspectionStruct.view(new Uint8Array(input), { baseOffset: 0 }).toObject() as unknown as CheckpointInspection;
+  if (input instanceof Uint8Array || input instanceof ArrayBuffer) {
+    if (input.byteLength < InspectionStruct.byteSize) return null;
+    return InspectionStruct.view(input).toObject() as unknown as CheckpointInspection;
   }
   return input;
 };
@@ -273,14 +264,14 @@ export const decodeWasmDiagnostics = (
   len?: number,
 ): any => {
   const buf = source instanceof WebAssembly.Memory ? source.buffer : source instanceof Uint8Array ? source.buffer : source;
-  const byteOffset = source instanceof Uint8Array ? source.byteOffset + ptr : ptr >>> 0;
-  const byteLength = len !== undefined ? len >>> 0 : source instanceof Uint8Array ? source.byteLength - ptr : buf.byteLength - byteOffset;
+  const byteOffset = source instanceof Uint8Array ? source.byteOffset + (ptr >>> 0) : ptr >>> 0;
+  const byteLength = len !== undefined ? len >>> 0 : source instanceof Uint8Array ? source.byteLength - (ptr >>> 0) : buf.byteLength - byteOffset;
   if (byteLength === 0) return [];
   const u8 = new Uint8Array(buf, byteOffset, byteLength);
   if (u8[0] === 0x5b) {
     return JSON.parse(textDec.decode(u8));
   }
-  return WasmDiagBatchStruct.view(u8, { baseOffset: 0 }).diags;
+  return WasmDiagBatchStruct.view(u8).diags;
 };
 export interface Shape {
   bits: number;
