@@ -1,6 +1,7 @@
 // The screen the checker painted, read out of a checkpoint with no Node APIs:
 // render-frame.ts does the same for PNGs but pulls in zlib and Buffer.
 import { decodeTrie } from "../../cfg/trie";
+import { bool, defineStruct, f64, i32, sentinel, slice, str, u32 } from "capnstruct";
 
 const WIDTH = 320;
 const HEIGHT = 200;
@@ -67,6 +68,220 @@ export interface CheckpointInspection {
   slides: CfgSlide[];
 }
 
+export const CKPT_MAGIC = 0x54504b43; // "CKPT"
+
+export const FrameStruct = defineStruct("DoomFrame", {
+  block: str,
+  wantsValue: bool,
+  saved: slice(str),
+});
+
+export const CheckpointStruct = defineStruct("DoomCheckpoint", {
+  magic: u32,
+  seq: u32,
+  byteLen: u32,
+  done: bool,
+  chunks: u32,
+  scriptFrame: sentinel(i32, -1),
+  entryChunks: sentinel(i32, -1),
+  evalMs: sentinel(f64, -1),
+  elapsedMs: sentinel(f64, -1),
+  fuel: sentinel(i32, -1),
+  capFail: sentinel(i32, -1),
+  hasPrevResult: bool,
+  call: str,
+  memory: str,
+  result: str,
+  prevResult: str,
+  globals: slice(str),
+  split: slice(str),
+  frames: slice(FrameStruct),
+});
+
+export const encodeCheckpoint = (seq: number, point: any): Uint8Array => {
+  const packed = CheckpointStruct.pack([
+    {
+      magic: CKPT_MAGIC,
+      seq: seq >>> 0,
+      byteLen: 0,
+      done: Boolean(point.done),
+      chunks: (point.chunks ?? 0) >>> 0,
+      scriptFrame: point.scriptFrame ?? null,
+      entryChunks: point.entryChunks ?? null,
+      evalMs: point.evalMs ?? null,
+      elapsedMs: point.elapsedMs ?? null,
+      fuel: point.fuel ?? null,
+      capFail: point.capFail === undefined || point.capFail === Infinity ? null : point.capFail,
+      hasPrevResult: point.prevResult !== undefined,
+      call: point.call ?? "",
+      memory: point.memory ?? "",
+      result: point.result ?? "",
+      prevResult: point.prevResult ?? "",
+      globals: point.globals ?? [],
+      split: point.split ?? [],
+      frames: (point.frames ?? []).map((f: any) => ({
+        block: f.block ?? "",
+        wantsValue: Boolean(f.wantsValue),
+        saved: f.saved ?? [],
+      })),
+    },
+  ]);
+  new DataView(packed.buffer, packed.byteOffset, 12).setUint32(8, packed.byteLength, true);
+  return packed;
+};
+
+const textDec = new TextDecoder();
+
+export const decodeCheckpoint = (
+  input: Uint8Array | ArrayBuffer | string | null | undefined,
+  totalByteLen?: number,
+): { seq: number; point: any } | null => {
+  if (!input) return null;
+  if (typeof input === "string") {
+    try {
+      const parsed = JSON.parse(input);
+      return parsed && typeof parsed === "object" ? ("point" in parsed ? parsed : { seq: 0, point: parsed }) : null;
+    } catch {
+      return null;
+    }
+  }
+  const u8 = input instanceof Uint8Array ? input : new Uint8Array(input);
+  if (u8.byteLength < 2) return null;
+  if (u8[0] === 0x7b) {
+    try {
+      const parsed = JSON.parse(textDec.decode(u8));
+      return parsed && typeof parsed === "object" ? ("point" in parsed ? parsed : { seq: 0, point: parsed }) : null;
+    } catch {
+      return null;
+    }
+  }
+  if (u8.byteLength < CheckpointStruct.size) return null;
+  try {
+    const hdr = CheckpointStruct.view(u8, { baseOffset: 0 });
+    if (hdr.magic !== CKPT_MAGIC) return null;
+    const byteLen = hdr.byteLen;
+    if (byteLen < CheckpointStruct.size || byteLen > (totalByteLen ?? u8.byteLength)) return null;
+    if (totalByteLen !== undefined) {
+      const point: any = { done: hdr.done, chunks: hdr.chunks };
+      if (hdr.scriptFrame !== null) point.scriptFrame = hdr.scriptFrame;
+      if (hdr.entryChunks !== null) point.entryChunks = hdr.entryChunks;
+      if (hdr.evalMs !== null) point.evalMs = hdr.evalMs;
+      if (hdr.elapsedMs !== null) point.elapsedMs = hdr.elapsedMs;
+      if (hdr.fuel !== null) point.fuel = hdr.fuel;
+      if (hdr.capFail !== null) point.capFail = hdr.capFail;
+      return { seq: hdr.seq, point };
+    }
+    const o = CheckpointStruct.view(u8.subarray(0, byteLen), { baseOffset: 0 }).toObject();
+    const point: any = {
+      done: o.done,
+      call: o.call,
+      memory: o.memory,
+      frames: o.frames,
+      globals: o.globals,
+      chunks: o.chunks,
+    };
+    if (o.scriptFrame !== null) point.scriptFrame = o.scriptFrame;
+    if (o.entryChunks !== null) point.entryChunks = o.entryChunks;
+    if (o.evalMs !== null) point.evalMs = o.evalMs;
+    if (o.elapsedMs !== null) point.elapsedMs = o.elapsedMs;
+    if (o.split.length > 0) point.split = o.split;
+    if (o.fuel !== null) point.fuel = o.fuel;
+    if (o.capFail !== null) point.capFail = o.capFail;
+    if (o.result) point.result = o.result;
+    if (o.hasPrevResult) point.prevResult = o.prevResult;
+    return { seq: o.seq, point };
+  } catch {
+    return null;
+  }
+};
+
+export const StackFrameStruct = defineStruct("DoomStackFrame", {
+  block: str,
+  fnId: u32,
+  fnName: str,
+});
+
+export const VarInfoStruct = defineStruct("DoomVarInfo", {
+  name: str,
+  u32: u32,
+  i32: i32,
+  hex: str,
+});
+
+export const CfgSlideStruct = defineStruct("DoomCfgSlide", {
+  block: str,
+  fnId: u32,
+  fnName: str,
+  declName: str,
+  startLine: u32,
+  endLine: u32,
+  code: str,
+});
+
+export const InspectionStruct = defineStruct("DoomInspection", {
+  headBlock: str,
+  fnId: u32,
+  fnName: str,
+  stack: slice(StackFrameStruct),
+  globals: slice(VarInfoStruct),
+  locals: slice(VarInfoStruct),
+  slides: slice(CfgSlideStruct),
+});
+
+export const encodeInspection = (insp: CheckpointInspection | null | undefined): Uint8Array | null => {
+  if (!insp) return null;
+  return InspectionStruct.pack([insp]);
+};
+
+export const decodeInspection = (
+  input: Uint8Array | ArrayBuffer | CheckpointInspection | null | undefined,
+): CheckpointInspection | null => {
+  if (!input) return null;
+  if (input instanceof Uint8Array) {
+    if (input.byteLength < 44) return null;
+    return InspectionStruct.view(input, { baseOffset: 0 }).toObject() as unknown as CheckpointInspection;
+  }
+  if (input instanceof ArrayBuffer) {
+    if (input.byteLength < 44) return null;
+    return InspectionStruct.view(new Uint8Array(input), { baseOffset: 0 }).toObject() as unknown as CheckpointInspection;
+  }
+  return input;
+};
+
+export const WasmDiagStruct = defineStruct("WasmDiag", {
+  line: u32,
+  character: u32,
+  code: u32,
+  category: u32,
+  fileName: str,
+  text: str,
+});
+
+Object.defineProperty(Object.getPrototypeOf(WasmDiagStruct.create()), "startPosition", {
+  get() {
+    return { line: this.line, character: this.character };
+  },
+});
+
+export const WasmDiagBatchStruct = defineStruct("WasmDiagBatch", {
+  diags: slice(WasmDiagStruct),
+});
+
+export const decodeWasmDiagnostics = (
+  source: WebAssembly.Memory | Uint8Array | ArrayBuffer,
+  ptr = 0,
+  len?: number,
+): any => {
+  const buf = source instanceof WebAssembly.Memory ? source.buffer : source instanceof Uint8Array ? source.buffer : source;
+  const byteOffset = source instanceof Uint8Array ? source.byteOffset + ptr : ptr >>> 0;
+  const byteLength = len !== undefined ? len >>> 0 : source instanceof Uint8Array ? source.byteLength - ptr : buf.byteLength - byteOffset;
+  if (byteLength === 0) return [];
+  const u8 = new Uint8Array(buf, byteOffset, byteLength);
+  if (u8[0] === 0x5b) {
+    return JSON.parse(textDec.decode(u8));
+  }
+  return WasmDiagBatchStruct.view(u8, { baseOffset: 0 }).diags;
+};
 export interface Shape {
   bits: number;
   digitBits: number;

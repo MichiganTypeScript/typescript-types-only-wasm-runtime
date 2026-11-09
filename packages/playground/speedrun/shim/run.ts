@@ -2,7 +2,7 @@
 // chunk is checked by `host.tsc` (tsrs.wasm), and each saved checkpoint is
 // handed to `onCheckpoint` as it lands. Bundled by build.mjs for Node (to
 // compare against the native checker) and for the browser worker.
-import { vfs, hooks } from "./fs";
+import { vfs } from "./fs";
 import { process, log } from "./process";
 import { host, type Tsc } from "./evaluate";
 import { run, type Checkpoint } from "../../cfg/drive";
@@ -28,15 +28,11 @@ export const start = async (o: Start) => {
   vfs.clear();
   vfs.set("/p/doom-keys.cfg.ts", o.moduleText);
   vfs.set("/p/keys.json", JSON.stringify(o.keyScript));
-  vfs.set(SAVE, JSON.stringify(o.resume));
   // drive.ts reads keys, KEY_SCRIPT included, only once `<save>.input` parses;
   // without the file every chunk lands in its catch and the game sees no keys.
   vfs.set(`${SAVE}.input`, JSON.stringify({ rev: 0, keys: [] }));
   process.env.KEY_SCRIPT = "/p/keys.json";
   log.write = (_s, text) => o.onLog(text);
-  hooks.onWrite = (path, text) => {
-    if (path === SAVE || path === `${SAVE}.final`) o.onCheckpoint(JSON.parse(text), path);
-  };
   host.tsc = o.tsc;
   host.root = "/p";
   host.files = o.libFiles;
@@ -58,10 +54,24 @@ export const start = async (o: Start) => {
   return run("/p/doom-keys.cfg.ts", "entry", [], {
     resume: o.resume,
     save: SAVE,
+    onCheckpoint: o.onCheckpoint,
     every: 1,
     fuel: o.fuel,
     max: 100000000,
   });
 };
 
-export { moduleShape, rgbaFrom, inspectCheckpoint } from "./frame";
+export {
+  moduleShape,
+  rgbaFrom,
+  inspectCheckpoint,
+  CheckpointStruct,
+  InspectionStruct,
+  WasmDiagStruct,
+  WasmDiagBatchStruct,
+  encodeCheckpoint,
+  decodeCheckpoint,
+  encodeInspection,
+  decodeInspection,
+  decodeWasmDiagnostics,
+} from "./frame";

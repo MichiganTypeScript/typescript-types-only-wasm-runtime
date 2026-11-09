@@ -14,7 +14,7 @@
 export type Tsc = (
   args: string[],
   options: { cwd: string; files: Record<string, string>; diagnostics: "json" },
-) => Promise<{ exitCode: number; memoryBytes?: number; diagnostics?: { fileName: string; startPosition: { line: number }; code: number; text: string }[] }>;
+) => Promise<{ exitCode: number; memoryBytes?: number; diagnostics?: Iterable<{ fileName: string; line?: number; startPosition?: { line: number }; code: number; text: string }> }>;
 
 /// Set by the host before `run`: node.js's `tsc` in Node, browser.js's in a worker.
 export const host: { tsc?: Tsc; root: string; files: Record<string, string>; config: object; onRun?: (ms: number, names: number, memoryBytes?: number) => void } = {
@@ -115,7 +115,8 @@ class ProbeProgram {
     const out = new Map<string, string>();
     const errors: string[] = [];
     for (const d of result.diagnostics ?? []) {
-      const k = d.fileName === path ? d.startPosition.line - lines : -1;
+      const line = d.line ?? d.startPosition?.line ?? -1;
+      const k = d.fileName === path ? line - lines : -1;
       const first = d.text.split("\n")[0]!;
       const m = k >= 0 && k < names.length ? PROBE.exec(first) : null;
       if (m) out.set(names[k]!, m[1]!);

@@ -19,6 +19,7 @@ await build({
     "node:fs": here + "fs.ts",
     "node:path": here + "path.ts",
     "node:url": here + "url.ts",
+    "capnstruct": process.env.CAPNSTRUCT_ENTRY ?? (process.env.HOME + "/repos/capnstruct/src/index.ts"),
   },
   plugins: [
     {

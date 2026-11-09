@@ -816,6 +816,7 @@
 <script src="presets.js"></script>
 <script src="monaco/vs/loader.js"></script>
 <script type="module">
+import { encodeCheckpoint, decodeCheckpoint, decodeInspection } from "./run.browser.js?v=13";
 const BITS = ["Escape","Enter","ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space","ControlLeft","KeyY","KeyN","Digit1","Digit2","Digit3","Digit4","Digit5","Digit6","Digit7","ShiftLeft","AltLeft","Tab"];
 const ALIAS = {
   up:"ArrowUp", forward:"ArrowUp", fwd:"ArrowUp", w:"ArrowUp",
@@ -1496,8 +1497,10 @@ async function restoreRun(wantText) {
     let ckpt = null;
     for (const i of [0, 1]) {
       try {
-        const c = JSON.parse(await (await read(`${files}-ckpt-${i}.json`)).text());
-        if (!ckpt || c.seq > ckpt.seq) ckpt = c;
+        const f = await read(`${files}-ckpt-${i}.json`);
+        const head = new Uint8Array(await f.slice(0, 128).arrayBuffer());
+        const c = head[0] === 0x7b ? decodeCheckpoint(new Uint8Array(await f.arrayBuffer())) : decodeCheckpoint(head, f.size);
+        if (c && (!ckpt || c.seq > ckpt.seq)) ckpt = c;
       } catch {}
     }
     const endName = usedTabMeta ? END_FILE : "end.json";
@@ -1725,7 +1728,7 @@ function execute(script, saved) {
   let autoRetryCount = 0;
   function spawnWorker(isResume) {
     worker?.terminate();
-    const w = new Worker("checker-worker.js?v=12", { type: "module" });
+    const w = new Worker("checker-worker.js?v=13", { type: "module" });
     worker = w;
     const tryAutoRecover = (errText) => {
       if (worker !== w) return true;
@@ -1755,8 +1758,9 @@ function execute(script, saved) {
         setTimeout(() => { if (checking) spawnWorker(true); }, 60);
         return;
       }
-      if (m.bootInspection) tscBootInspection = m.bootInspection;
+      if (m.bootInspection) tscBootInspection = decodeInspection(m.bootInspection);
       if (m.inspection) {
+        m.inspection = decodeInspection(m.inspection);
         tscInspection = m.inspection;
         if (tscSlideAuto) tscSubSlideIdx = 0;
       }
@@ -2828,13 +2832,14 @@ async function exportRun() {
   const metaBlob = await readFile(META_FILE).catch(() => { usedTabMeta = false; return readFile("meta.json").catch(() => null); });
   const saved = JSON.parse(await metaBlob?.text() ?? "null");
   if (!saved) return showToast("Nothing to export yet: press Run first");
-  let checkpoint = null;
-  for (const i of [0, 1]) {
-    try {
-      const c = JSON.parse(await (await readFile(`${saved.files ?? saved.runId}-ckpt-${i}.json`)).text());
-      if (!checkpoint || c.seq > checkpoint.seq) checkpoint = c;
-    } catch { /* missing, or torn by a tab closed mid-write */ }
-  }
+    let checkpoint = null;
+    for (const i of [0, 1]) {
+      try {
+        const f = await readFile(`${saved.files ?? saved.runId}-ckpt-${i}.json`);
+        const c = decodeCheckpoint(new Uint8Array(await f.arrayBuffer()));
+        if (c && (!checkpoint || c.seq > checkpoint.seq)) checkpoint = c;
+      } catch { /* missing, or torn by a tab closed mid-write */ }
+    }
   const ended = await readFile(usedTabMeta ? END_FILE : "end.json").then(() => true, () => false);
   const all = await readFile(`${saved.files ?? saved.runId}-frames.rgba`).catch(() => null);
   const n = all ? Math.floor(all.size / FRAME_BYTES) : 0;
@@ -2895,7 +2900,7 @@ async function importRun(file) {
     await w.close();
   };
   await put(`${runId}-frames.rgba`, frameBytes);
-  if (header.checkpoint) await put(`${runId}-ckpt-0.json`, JSON.stringify(header.checkpoint));
+  if (header.checkpoint) await put(`${runId}-ckpt-0.json`, encodeCheckpoint(header.checkpoint.seq ?? 1, header.checkpoint.point ?? header.checkpoint));
   if (header.ended) await put(END_FILE, "{}");
   // META_FILE last: restoreRun treats a directory without it as no run.
   await put(META_FILE, JSON.stringify({
@@ -3252,11 +3257,11 @@ setInterval(() => {
 }, 2200);
 function requestIdleInspection() {
   if (checking || tscInspection) return;
-  const w = new Worker("checker-worker.js?v=12", { type: "module" });
+  const w = new Worker("checker-worker.js?v=13", { type: "module" });
   w.onmessage = ({ data: m }) => {
     if (m.kind === "inspected") {
-      if (m.bootInspection) tscBootInspection = m.bootInspection;
-      if (m.inspection) tscInspection = m.inspection;
+      if (m.bootInspection) tscBootInspection = decodeInspection(m.bootInspection);
+      if (m.inspection) tscInspection = decodeInspection(m.inspection);
       tscMidFrame = !m.done && (m.chunks > 0 || frames.length > 0);
       if (m.chunks > 0 && !curChunk) curChunk = m.chunks;
       recordTscChunkInspection(curChunk || 1, tscInspection || tscBootInspection);

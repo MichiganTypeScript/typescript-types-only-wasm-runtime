@@ -7,6 +7,7 @@
 // doom module), and rewinds to the mark after each run. A new instance per call would parse all of
 // them again every chunk. A trap leaves the instance in an unknown state, so it is dropped.
 import { makeRequest, memoryFileSystem, NotFoundError } from "../tsrs/core.js";
+import { decodeWasmDiagnostics } from "../run.browser.js?v=13";
 import { parseDiagnostics } from "./tsgo.js";
 
 const OP_READ = 0, OP_STAT = 1, OP_READ_DIR = 2, OP_REALPATH = 3, OP_WRITE = 4, OP_APPEND = 5, OP_REMOVE = 6, OP_CHTIMES = 7;
@@ -170,12 +171,11 @@ export async function tsc(args, options = {}) {
   const json = options.diagnostics === "json";
   const cwd = options.cwd ?? "/";
   cur = { host, out: [], err: [], staged: new Uint8Array(0) };
-  // Stream `--pretty false` diagnostics through fd_write during execute.CommandLine:
-  // tsgo-doom's JSON output buffer is 8 MiB below the heap watermark, so once
-  // state.d.ts exceeds ~8 MiB (frame 800+), json.Marshal allocates above the watermark
-  // and ResetWasmHeapToWatermark() zeros it before tsrs_run() returns.
-  const runArgs = json ? ["--pretty", "false", ...args] : [...args];
-  const request = makeRequest(runArgs, { cwd, json: false, caseInsensitive: !!options.caseInsensitive });
+  // Pass capnDiagnostics (flag bit 8) so wasm_wasip1.go runs with --quiet and packs
+  // result.Diagnostics into the pre-watermark 16 MiB capnstruct WasmDiagBatch buffer
+  // before ResetWasmHeapToWatermark() rewinds the TinyGo bump heap.
+  const request = makeRequest(args, { cwd, json: false, caseInsensitive: !!options.caseInsensitive });
+  if (json) request.flags = (request.flags ?? 0) | 8;
   let exitCode;
   try {
     const req = encoder.encode([request.cwd, String(request.flags ?? 0), ...request.args].join("\0"));
@@ -195,12 +195,21 @@ export async function tsc(args, options = {}) {
     }
   }
   const joined = (chunks) => chunks.map((c) => decoder.decode(c, { stream: true })).join("") + decoder.decode();
-  const stdout = joined(cur.out);
+  const stdout = cur.out.length ? joined(cur.out) : "";
+  let diagnostics;
+  if (json) {
+    const outLen = instance && typeof inst.exports.tsrs_output_len === "function" ? inst.exports.tsrs_output_len() >>> 0 : 0;
+    if (outLen >= 8 && typeof inst.exports.tsrs_output === "function") {
+      diagnostics = decodeWasmDiagnostics(memory, inst.exports.tsrs_output() >>> 0, outLen);
+    } else {
+      diagnostics = parseDiagnostics(stdout, cwd);
+    }
+  }
   return {
     exitCode,
     stdout,
     stderr: joined(cur.err),
-    diagnostics: json ? parseDiagnostics(stdout, cwd) : undefined,
+    diagnostics,
     files: Object.fromEntries(host.written),
     memoryBytes: memory.buffer.byteLength,
   };

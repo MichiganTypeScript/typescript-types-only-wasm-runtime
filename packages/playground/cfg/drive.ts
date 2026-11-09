@@ -717,6 +717,7 @@ export const run = async (
     every?: number;
     /// the module represents words as byte-tuples (see w4Encode/w4Decode)
     word4?: boolean;
+    onCheckpoint?: (point: Checkpoint, path: string) => void;
   } = {},
 ): Promise<RunResult> => {
   let fuel = options.fuel ?? DEFAULT_FUEL;
@@ -1975,7 +1976,8 @@ ${splitReaders(split)}
         prevResult: done ? lastResult : prevLastResult,
       };
       const s0 = performance.now();
-      saveCheckpoint(options.save, JSON.stringify(point));
+      if (options.onCheckpoint) options.onCheckpoint(point, options.save);
+      else saveCheckpoint(options.save, JSON.stringify(point));
       saveMs += performance.now() - s0;
     };
 
@@ -2054,7 +2056,8 @@ ${splitReaders(split)}
       evalMs,
       split: [...split],
     };
-    saveCheckpoint(`${options.save}.final`, JSON.stringify(point));
+    if (options.onCheckpoint) options.onCheckpoint(point, `${options.save}.final`);
+    else saveCheckpoint(`${options.save}.final`, JSON.stringify(point));
   }
   if (!options.session) env.close();
   if (!options.quiet) process.stdout.write("\n");

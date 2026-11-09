@@ -13,12 +13,20 @@
 //      { kind: "frame", index, rgba, chunks, ms }  frame `index` finished
 //      { kind: "kept", frames }                    frames 0 to frames-1 are the saved run's
 //      { kind: "log", text } | { kind: "end", result } | { kind: "error", text }
-import { start, moduleShape, rgbaFrom, inspectCheckpoint } from "./run.browser.js?v=12";
+import {
+  start,
+  moduleShape,
+  rgbaFrom,
+  inspectCheckpoint,
+  encodeCheckpoint,
+  decodeCheckpoint,
+  encodeInspection,
+} from "./run.browser.js?v=13";
 import * as tsrs from "./tsrs/browser.js";
 import * as tsgo from "./tsgo/tsgo.js?v=5";
-import * as tsgoDoom from "./tsgo/tsgo-doom.js?v=5";
+import * as tsgoDoom from "./tsgo/tsgo-doom.js?v=6";
 
-const tsgoDoomWasmUrl = new URL("./tsgo/tsgo-doom.wasm.gz?v=2.gz", import.meta.url);
+const tsgoDoomWasmUrl = new URL("./tsgo/tsgo-doom.wasm.gz?v=3.gz", import.meta.url);
 const CHECKERS = {
   "tsgo-doom": { label: "tsgo-doom", load: () => tsgoDoom.loadModule(tsgoDoomWasmUrl), tsc: (args, o) => tsgoDoom.tsc(args, o) },
   teamchong: { label: "tsgo-doom", load: () => tsgoDoom.loadModule(tsgoDoomWasmUrl), tsc: (args, o) => tsgoDoom.tsc(args, o) },
@@ -103,6 +111,14 @@ const readText = async (name) => {
     return null;
   }
 };
+const readBytes = async (name) => {
+  const dir = await runDir;
+  try {
+    return new Uint8Array(await (await (await dir.getFileHandle(name)).getFile()).arrayBuffer());
+  } catch {
+    return null;
+  }
+};
 
 const readBoundsIndex = async (files) => {
   try { return JSON.parse((await readText(`${files}-bounds.json`)) ?? "[]"); } catch { return []; }
@@ -110,7 +126,7 @@ const readBoundsIndex = async (files) => {
 const readBound = async (files, [at, len]) => {
   const dir = await runDir;
   const file = await (await dir.getFileHandle(`${files}-bounds.jsonl`)).getFile();
-  return JSON.parse(await file.slice(at, at + len).text());
+  return decodeCheckpoint(new Uint8Array(await file.slice(at, at + len).arrayBuffer()))?.point ?? null;
 };
 
 // Frames where both scripts reach the same VM state: identical keys, active
@@ -173,13 +189,27 @@ const diffDemoPokes = (a, b, kept) => {
   return patch;
 };
 
-const readCheckpoint = async (runId) => {
+const readCheckpoint = async (runId, headerOnly = false) => {
+  const dir = await runDir;
+  if (!dir) return null;
   const saved = [];
   for (const i of [0, 1]) {
-    const t = await readText(`${runId}-ckpt-${i}.json`);
-    try { if (t) saved.push(JSON.parse(t)); } catch { /* torn write; the other file is whole */ }
+    try {
+      const file = await (await dir.getFileHandle(`${runId}-ckpt-${i}.json`)).getFile();
+      const head = new Uint8Array(await file.slice(0, 128).arrayBuffer());
+      const hdr =
+        head[0] === 0x7b
+          ? decodeCheckpoint(new Uint8Array(await file.arrayBuffer()))
+          : decodeCheckpoint(head, file.size);
+      if (hdr) saved.push({ hdr, file, isJson: head[0] === 0x7b });
+    } catch {
+      /* torn write; the other file is whole */
+    }
   }
-  return saved.sort((a, b) => b.seq - a.seq)[0] ?? null;
+  const best = saved.sort((a, b) => b.hdr.seq - a.hdr.seq)[0];
+  if (!best) return null;
+  if (headerOnly || best.isJson) return best.hdr;
+  return decodeCheckpoint(new Uint8Array(await best.file.arrayBuffer()));
 };
 
 // Deletes orphaned run files not referenced by any active tab's `meta*.json` or `keep`.
@@ -291,12 +321,11 @@ const openStore = async (files, kept = 0, _boundsIndex = [], forkRunId = null) =
     return files;
   }
 };
-const encoder = new TextEncoder();
 const saveCheckpoint = (seq, point) => {
   if (!store) return;
-  const json = typeof point === "string" ? point : JSON.stringify(point);
-  writeAll(store.ckpts[seq % 2], encoder.encode(`{"seq":${seq},"point":${json}}`));
-  return json;
+  const bytes = encodeCheckpoint(seq, point);
+  writeAll(store.ckpts[seq % 2], bytes);
+  return bytes;
 };
 const boundsEnd = (index) => Math.max(0, ...index.filter(Boolean).map(([at, len]) => at + len));
 // Called with the JSON saveCheckpoint wrote for frame n's end.
@@ -358,15 +387,19 @@ self.onmessage = async ({ data }) => {
       }
       const hasCkpt = !!pt;
       pt ??= a.resume;
-      const inspection = inspectCheckpoint(a.shape, pt);
-      return post({
-        kind: "inspected",
-        index: hasCkpt ? (pt.scriptFrame ?? 0) + (pt.done ? 1 : 0) : 0,
-        chunks: !pt?.done ? (pt?.entryChunks ?? 0) : 0,
-        done: !!pt?.done,
-        inspection,
-        bootInspection: a.bootInspection,
-      });
+      const inspection = encodeInspection(inspectCheckpoint(a.shape, pt));
+      const bootInspection = encodeInspection(a.bootInspection);
+      return post(
+        {
+          kind: "inspected",
+          index: hasCkpt ? (pt.scriptFrame ?? 0) + (pt.done ? 1 : 0) : 0,
+          chunks: !pt?.done ? (pt?.entryChunks ?? 0) : 0,
+          done: !!pt?.done,
+          inspection,
+          bootInspection,
+        },
+        [inspection?.buffer, bootInspection?.buffer].filter(Boolean),
+      );
     }
     if (data.resume) {
       const saved = await readSavedMeta();
@@ -426,7 +459,7 @@ self.onmessage = async ({ data }) => {
     if (metaName !== "meta.json") await writeFile("meta.json", metaPayload).catch(() => {});
     await clearRun(files, endName, metaName, runId);
     if (resume) {
-      seq = Math.max(seq, (await readCheckpoint(files))?.seq ?? 0);
+      seq = Math.max(seq, (await readCheckpoint(files, true))?.seq ?? 0);
       saveCheckpoint(++seq, resume);
     }
     if (!data.resume) {
@@ -440,16 +473,20 @@ self.onmessage = async ({ data }) => {
     const a = await load();
     const initPt = resume ?? a.resume;
     const initIndex = resume ? (resume.scriptFrame ?? 0) + (resume.done ? 1 : 0) : 0;
-    const initInspection = inspectCheckpoint(a.shape, initPt);
+    const initInspection = encodeInspection(inspectCheckpoint(a.shape, initPt));
+    const bootInspection = encodeInspection(a.bootInspection);
     const initChunks = !initPt?.done ? (initPt?.entryChunks ?? 0) : 0;
-    post({
-      kind: "inspected",
-      index: initIndex,
-      chunks: initChunks,
-      done: !!initPt?.done,
-      inspection: initInspection,
-      bootInspection: a.bootInspection,
-    });
+    post(
+      {
+        kind: "inspected",
+        index: initIndex,
+        chunks: initChunks,
+        done: !!initPt?.done,
+        inspection: initInspection,
+        bootInspection,
+      },
+      [initInspection?.buffer, bootInspection?.buffer].filter(Boolean),
+    );
     post({ kind: "status", text: `fetching ${checker.label}` });
     await checker.load();
     post({
@@ -476,15 +513,21 @@ self.onmessage = async ({ data }) => {
         p.elapsedMs = Math.round(ms);
         // mid-frame the screen is in a buffer `entry` has not returned yet
         if (p.scriptFrame !== undefined) index = p.scriptFrame;
-        const inspection = inspectCheckpoint(a.shape, p);
+        const inspection = encodeInspection(inspectCheckpoint(a.shape, p));
         if (!p.done) {
           saveCheckpoint(++seq, p);
-          return post({ kind: "progress", index, chunks: p.entryChunks, ms, inspection });
+          return post(
+            { kind: "progress", index, chunks: p.entryChunks, ms, inspection },
+            inspection ? [inspection.buffer] : [],
+          );
         }
         const rgba = rgbaFrom(a.shape, p.memory, p.result);
         saveFrame(index, rgba);
         saveBound(index, saveCheckpoint(++seq, p));
-        post({ kind: "frame", index, rgba, chunks: p.entryChunks, ms, inspection }, [rgba.buffer]);
+        post(
+          { kind: "frame", index, rgba, chunks: p.entryChunks, ms, inspection },
+          [rgba.buffer, ...(inspection ? [inspection.buffer] : [])],
+        );
         index++;
         framesInWorker++;
         if (index < keyScript.length && (framesInWorker >= 40 || lastMemBytes > 1500 * 1024 * 1024)) {
