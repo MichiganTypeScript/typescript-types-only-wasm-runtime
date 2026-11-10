@@ -625,7 +625,7 @@
       </div>
       <div id="liveSub" class="live-sub">
         <span id="liveSubText">Live type-checking Doom (~20&ndash;30s per frame, ~35&ndash;70 chunks). Keep this tab open; frames auto-save as they finish.</span>
-        <button type="button" class="inline-link" id="bannerWatchBtn">Watch 1000&times; pre-recorded run &rarr;</button>
+        <button type="button" class="inline-link" id="bannerWatchBtn">Pre-recorded videos &amp; saved runs &rarr;</button>
       </div>
       <div class="live-bar" title="Overall run progress across all frames"><div id="liveBarFill" class="live-bar-fill" style="width:0%"></div></div>
     </div>
@@ -722,7 +722,7 @@
           <option value="stage_e1m9">Start Secret Stage — E1M9: Military Base (UV + Rocket Launcher, 57 tics)</option>
         </optgroup>
         <optgroup label="Stage UV-Speed TAS Runs (Frame-1 Stage Splits)">
-          <option value="tas" selected>E1M1: Hangar — 0:07.69 UV-Speed TAS (277 tics)</option>
+              <option value="tas">E1M1: Hangar - 0:07.69 UV-Speed TAS (277 tics)</option>
           <option value="e1m2_tas">E1M2: Nuclear Plant — 0:18.57 UV-Speed TAS (650 tics)</option>
           <option value="e1m3_tas">E1M3: Toxin Refinery — 0:30.71 UV-Speed TAS (1075 tics)</option>
           <option value="e1m4_tas">E1M4: Command Control — 0:10.60 UV-Speed TAS (371 tics)</option>
@@ -732,7 +732,7 @@
             <option value="e1m8_tas">E1M8: Phobos Anomaly (Boss Stage) - 0:16.74 UV-Speed TAS (591 tics)</option>
         </optgroup>
         <optgroup label="Full Episode &amp; Classic E1M1 Runs">
-            <option value="ep1_tas">Episode 1 (All 8 Stages E1M1-E1M8) 3:23 UV-Speed TAS (7427 tics)</option>
+              <option value="ep1_tas" selected>Episode 1 (All 8 Stages E1M1-E1M8) 3:23 UV-Speed TAS (7427 tics)</option>
           <option value="uvmax_tas">E1M1 0:18.97 UV-Max TAS — 100% Kills &amp; Secrets (672 tics)</option>
           <option value="uvspeed_rta">E1M1 0:08.74 UV-Speed / Pacifist RTA World Record (314 tics)</option>
           <option value="uvmax_rta">E1M1 0:24.83 UV-Max RTA World Record (877 tics)</option>
@@ -786,16 +786,17 @@
   <section class="card" style="max-width:1000px">
     <div class="row">
       <label class="meta">Recordings
-        <select id="recSel">
-          <option value="ts7.1-tas.mp4">TAS preset, checked by TS7.1, played 1000x faster</option>
-          <option value="tsrs-tas.mp4">TAS preset, checked by tsrs, played 1000x faster</option>
-          <option value="ts7.1-e1m1.mp4">Clear preset, checked by TS7.1, played 1000x faster</option>
-        </select>
-      </label>
-    </div>
-    <p class="meta"><button type="button" class="inline-link" id="backToEditorBtn">&larr; Back to Live Type-Checker &amp; Editor</button></p>
-    <p class="meta">A full run takes hours to check, so these are screen recordings of runs that were checked to the end earlier. The overlay shows each frame's check time.</p>
-    <video id="recVideo" controls playsinline preload="metadata" src="recordings/ts7.1-tas.mp4?v=4" style="width:100%;background:#000;border-radius:4px"></video>
+          <select id="recSel">
+            <option value="doom-speedrun.7427-frames.webm" selected>Episode 1 (All 8 Stages E1M1&ndash;E1M8) 3:23 UV-Speed TAS (7,427 frames, checked by tsgo-doom)</option>
+            <option value="ts7.1-tas.mp4">E1M1 TAS preset (277 frames), checked by TS7.1, played 1000&times; faster</option>
+            <option value="tsrs-tas.mp4">E1M1 TAS preset (277 frames), checked by tsrs, played 1000&times; faster</option>
+            <option value="ts7.1-e1m1.mp4">E1M1 Clear preset (1000 tics), checked by TS7.1, played 1000&times; faster</option>
+          </select>
+        </label>
+      </div>
+      <p class="meta"><button type="button" class="inline-link" id="backToEditorBtn">&larr; Back to Live Type-Checker &amp; Editor</button></p>
+      <p class="meta">A full run takes hours to check, so these are recordings of runs checked earlier in TypeScript (including the full 7,427-frame Episode 1 UV-Speed TAS and 1000&times; screen recordings showing each frame's check time).</p>
+      <video id="recVideo" controls playsinline preload="metadata" src="recordings/doom-speedrun.7427-frames.webm" style="width:100%;background:#000;border-radius:4px"></video>
   </section>
   <section class="card" style="max-width:1000px">
     <div class="row">
@@ -1427,7 +1428,18 @@ let stageText = "loading the checker";
 let frameAt = [];  // checker ms when each frame landed, measured in this tab
 let runKey;        // OPFS id of the run on screen; the worker uses it as runId too
 let runInfo;       // { t, checker, startedAt } of that run
-let runStatus;     // "checking" | "finished" | "failed"
+let runStatus = "idle"; // "checking" | "finished" | "failed"
+let prerecActive = false;
+let prerecMutedByPolicy = false;
+const prerecVideo = document.createElement("video");
+prerecVideo.src = "recordings/doom-speedrun.7427-frames.webm";
+prerecVideo.playsInline = true;
+prerecVideo.preload = "auto";
+const prerecHoverVideo = document.createElement("video");
+prerecHoverVideo.src = "recordings/doom-speedrun.7427-frames.webm";
+prerecHoverVideo.playsInline = true;
+prerecHoverVideo.preload = "metadata";
+prerecHoverVideo.muted = true;
 // Doom runs 35 tics per second and the checker runs one tic per frame
 // (drive.ts sets singletics for a key script), so 1x plays 35 frames/s.
 function switchToTab(tabId, autoPlayVideo = false) {
@@ -1436,6 +1448,11 @@ function switchToTab(tabId, autoPlayVideo = false) {
     document.getElementById(t.dataset.tab).hidden = t.dataset.tab !== tabId;
   }
   if (tabId === "playbackTab") {
+    if (prerecActive && playing) {
+      playing = false;
+      playBtn.textContent = "Play";
+      prerecVideo.pause();
+    }
     refreshPast();
     if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
     const v = document.getElementById("recVideo");
@@ -1446,6 +1463,7 @@ function switchToTab(tabId, autoPlayVideo = false) {
       v.pause();
     }
   } else {
+    document.getElementById("recVideo")?.pause();
     pastStop();
     if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
   }
@@ -1459,7 +1477,7 @@ document.getElementById("backToEditorBtn").addEventListener("click", () => switc
 
 document.getElementById("recSel").addEventListener("change", (e) => {
   const v = document.getElementById("recVideo");
-  v.src = "recordings/" + e.target.value + "?v=4";
+  v.src = "recordings/" + e.target.value;
   v.muted = !document.getElementById("soundChk")?.checked;
   v.play().catch(() => {});
 });
@@ -1730,8 +1748,14 @@ document.getElementById("pastDelAllBtn").addEventListener("click", async () => {
 // its frames are already on screen and the worker continues from its checkpoint.
 function execute(script, saved) {
   pauseHint = "";
+  if (prerecActive) {
+    prerecActive = false;
+    prerecMutedByPolicy = false;
+    prerecVideo.pause();
+    frames = [];
+    frameAt = [];
+  }
   if (runStatus) archiveRun(runStatus === "checking" ? "stopped" : runStatus);
-  worker?.terminate();
   runKey = saved?.runId ?? crypto.randomUUID();
   const startedAt = saved?.startedAt ?? Date.now();
   runInfo = { t: saved?.t ?? editor.value, checker: saved?.checker ?? checkerSel.value, startedAt };
@@ -2069,8 +2093,8 @@ const doomAudio = (() => {
   }
 
   function shouldPlayBgm() {
+    if (prerecActive) return false;
     if (!soundChk.checked && !recordingVideo) return false;
-    if (recordingVideo || past.playing) return true;
     if (!document.getElementById("playbackTab")?.hidden) return false;
     return playing && (checking || frames.length > 0);
   }
@@ -2176,13 +2200,26 @@ const doomAudio = (() => {
 soundChk.addEventListener("change", () => {
   const v = document.getElementById("recVideo");
   if (v) v.muted = !soundChk.checked;
+  if (prerecActive) {
+    prerecMutedByPolicy = false;
+    prerecVideo.muted = !soundChk.checked;
+    drawHud();
+  }
   doomAudio.unlock();
 });
 loopChk.addEventListener("change", () => doomAudio.syncBgm());
 // Only use events that Firefox/Chrome/Safari treat as valid user-activation for HTMLMediaElement.play().
 // (In Firefox, pointerdown is NOT a user-activation event and calling play() in pointerdown poisons the following click!)
 for (const ev of ["click", "keydown", "touchend"]) {
-  window.addEventListener(ev, () => { if (soundChk.checked) doomAudio.unlock(); }, { passive: true });
+  window.addEventListener(ev, () => {
+    if (prerecActive && prerecMutedByPolicy) {
+      prerecMutedByPolicy = false;
+      prerecVideo.muted = !soundChk.checked;
+      if (playing && prerecVideo.paused) prerecVideo.play().catch(() => {});
+      drawHud();
+    }
+    if (soundChk.checked) doomAudio.unlock();
+  }, { passive: true });
 }
 await new Promise((resolve) => {
   const base = new URL("monaco/", location.href).href;
@@ -2235,7 +2272,8 @@ function drawHud() {
   const seen = frameAt.flatMap((ms, i) => ms === undefined ? [] : [[i, ms]]);
   const n = seen.length;
   const rate = n > 1 ? `\nmeasured: ${((seen[n - 1][1] - seen[0][1]) / (seen[n - 1][0] - seen[0][0]) / 1000).toFixed(1)}s per frame` : "";
-  hud.textContent = `${at}checker: ${progress}${elapsed ? ` (${elapsed})` : ""}${rate}`;
+  const soundHint = prerecActive && prerecMutedByPolicy && soundChk.checked ? "\nsound: click anywhere to unmute" : "";
+  hud.textContent = `${at}checker: ${progress}${elapsed ? ` (${elapsed})` : ""}${rate}${soundHint}`;
   updateLiveStatus(elapsed);
   drawTimeline();
 }
@@ -2297,9 +2335,16 @@ function updateLiveStatus(elapsed) {
     overlayTitle.textContent = `TypeScript (${checkerLabel}) is compiling Frame 1 of ${total}...`;
     overlaySub.textContent = `${chunkDesc}${elapsed ? ` · ${elapsed} elapsed` : ""}${labels[0] ? ` · tic 1 input: ${labels[0]}` : ""}`;
   } else if (isDone) {
-    liveTitle.textContent = `FINISHED — ALL ${frames.length} FRAMES RECORDED BY TYPESCRIPT`;
-    liveBadge.textContent = `${frames.length} / ${total} frames`;
-    liveSubText.textContent = `All ${frames.length} frames have been type-checked and saved in your browser. Press Play below to watch, or edit the TypeScript inputs on the right and click Run.`;
+    if (prerecActive) {
+      liveTitle.textContent = `PRE-RECORDED EPISODE 1 UV-SPEED TAS — ALL ${frames.length} FRAMES (E1M1–E1M8)`;
+      liveBadge.textContent = `${cur + 1} / ${total} frames`;
+      const soundNote = prerecMutedByPolicy && soundChk.checked ? " · Click anywhere to unmute audio." : "";
+      liveSubText.textContent = `Playing pre-recorded 7,427-frame speedrun checked by TypeScript (${checkerLabel}). Scrub timeline, hover/click any tic in the editor, or edit & click Run to live type-check.${soundNote}`;
+    } else {
+      liveTitle.textContent = `FINISHED — ALL ${frames.length} FRAMES RECORDED BY TYPESCRIPT`;
+      liveBadge.textContent = `${frames.length} / ${total} frames`;
+      liveSubText.textContent = `All ${frames.length} frames have been type-checked and saved in your browser. Press Play below to watch, or edit the TypeScript inputs on the right and click Run.`;
+    }
   } else {
     liveTitle.textContent = frames.length
       ? `PAUSED / STOPPED AFTER ${frames.length} OF ${total} FRAMES`
@@ -2373,9 +2418,13 @@ timeline.addEventListener("click", (e) => {
     return;
   }
   if (idx >= frames.length) return;
-  playing = false; playBtn.textContent = "Play"; drawFrame(idx);
+  playing = false;
+  playBtn.textContent = "Play";
+  if (prerecActive) prerecVideo.pause();
+  drawFrame(idx);
   inspectTscFrame(idx);
-  doomAudio.syncBgm(); doomAudio.onFrame(cur, labels[cur] || "");
+  doomAudio.syncBgm();
+  doomAudio.onFrame(cur, labels[cur] || "");
 });
 
 function renderRgba320x200ToMain(src) {
@@ -2392,13 +2441,24 @@ function renderRgba320x200ToMain(src) {
   ctx.putImageData(img, 0, 0);
 }
 
-function drawFrame(idx) {
+function drawFrame(idx, fromPrerecVideo = false) {
   if (!frames.length) return drawHud();
   cur = Math.max(0, Math.min(frames.length - 1, idx));
   // a kept frame still being read back from OPFS
   const src = frames[cur];
   if (src) {
     renderRgba320x200ToMain(src);
+    ctx.putImageData(img, 0, 0);
+  } else if (prerecActive) {
+    if (!fromPrerecVideo) {
+      const targetTime = (cur + 0.15) / 35;
+      if (Math.abs(prerecVideo.currentTime - targetTime) > 0.01) {
+        try { prerecVideo.currentTime = targetTime; } catch {}
+      }
+    }
+    if (prerecVideo.readyState >= 2) {
+      ctx.drawImage(prerecVideo, 0, 0, 960, 600);
+    }
   } else {
     rgba.fill(0);
     ctx.putImageData(img, 0, 0);
@@ -2649,12 +2709,106 @@ async function decodeHash(h) {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
+function stopPrerecordedSession() {
+  if (!prerecActive) return;
+  prerecActive = false;
+  prerecMutedByPolicy = false;
+  prerecVideo.pause();
+  playing = false;
+  playBtn.textContent = "Play";
+  frames = [];
+  frameAt = [];
+  labels = [];
+  cur = 0;
+  scrub.max = "0";
+  scrub.value = "0";
+  frameLabel.textContent = "0 / 0";
+  runStatus = "idle";
+  progress = "ready";
+  ctx.clearRect(0, 0, 960, 600);
+  drawHud();
+  updateEditorStatusDecorations();
+  updateTscSlideshow();
+}
+async function startPrerecordedSession() {
+  if (worker) { worker.terminate(); worker = null; }
+  checking = false;
+  prerecActive = true;
+  if (presetSel.value !== "ep1_tas") {
+    presetSel.value = "ep1_tas";
+    editorEdited = false;
+    editor.value = presetText("ep1_tas");
+  }
+  const ep1Steps = stepsFromLmp(window.PRESETS.ep1_tas);
+  labels = labelsOf(ep1Steps);
+  frames = new Array(labels.length);
+  frameAt = [];
+  runStatus = "finished";
+  curChunk = 0;
+  tscMidFrame = false;
+  stageText = "";
+  lastTscText = "";
+  pauseHint = "";
+  progress = `pre-recorded · ${frames.length} frames (3:23 Ep1 UV-Speed TAS)`;
+  scrub.max = String(Math.max(0, frames.length - 1));
+  cur = 0;
+  playing = true;
+  playBtn.textContent = "Pause";
+  prerecVideo.currentTime = 0;
+  prerecVideo.playbackRate = Number(fpsSel.value) || 1;
+  prerecVideo.muted = !soundChk.checked;
+  prerecVideo.play().then(() => {
+    prerecMutedByPolicy = false;
+    drawHud();
+  }).catch(() => {
+    prerecMutedByPolicy = soundChk.checked;
+    prerecVideo.muted = true;
+    prerecVideo.play().catch(() => {});
+    drawHud();
+  });
+  drawFrame(0, true);
+  updateEditorStatusDecorations();
+  updateTscSlideshow();
+  requestIdleInspection();
+}
+prerecVideo.addEventListener("loadeddata", () => {
+  if (prerecActive && prerecVideo.readyState >= 2) ctx.drawImage(prerecVideo, 0, 0, 960, 600);
+});
+prerecVideo.addEventListener("seeked", () => {
+  if (prerecActive && prerecVideo.readyState >= 2) ctx.drawImage(prerecVideo, 0, 0, 960, 600);
+});
+prerecVideo.addEventListener("ended", () => {
+  if (!prerecActive) return;
+  if (loopChk.checked) {
+    prerecVideo.currentTime = 0;
+    drawFrame(0, true);
+    prerecVideo.play().catch(() => {});
+  } else {
+    playing = false;
+    playBtn.textContent = "Play";
+    drawFrame(frames.length - 1, true);
+  }
+});
+prerecHoverVideo.addEventListener("seeked", () => {
+  if (prerecActive && !editorStepTooltip.hidden && estCtx && prerecHoverVideo.readyState >= 2) {
+    estCtx.drawImage(prerecHoverVideo, 0, 0, 320, 200);
+    editorTooltipCanvas.hidden = false;
+  }
+});
+fpsSel.addEventListener("change", () => {
+  if (prerecActive) prerecVideo.playbackRate = Number(fpsSel.value) || 1;
+});
 presetSel.addEventListener("change", () => {
   const name = presetSel.value;
   if (name === "custom") return;
   // Replacing the editor would drop the user's edits; ask first.
-  if (!editorEdited || confirm("Replace your edits with this preset?")) loadPreset(name);
-  else presetSel.value = "custom";
+  if (!editorEdited || confirm("Replace your edits with this preset?")) {
+    loadPreset(name);
+    if (!checking) {
+      if (name === "ep1_tas") startPrerecordedSession();
+      else if (prerecActive) stopPrerecordedSession();
+    }
+  } else presetSel.value = "custom";
 });
 editorModel.onDidChangeContent(() => { if (!settingEditor) { presetSel.value = "custom"; editorEdited = true; } });
 document.getElementById("runBtn").addEventListener("click", runCurrent);
@@ -2662,20 +2816,41 @@ playBtn.addEventListener("click", () => {
   if (!playing && cur >= frames.length - 1) drawFrame(0);
   playing = !playing;
   playBtn.textContent = playing ? "Pause" : "Play";
+  if (prerecActive) {
+    prerecMutedByPolicy = false;
+    prerecVideo.muted = !soundChk.checked;
+    prerecVideo.playbackRate = Number(fpsSel.value) || 1;
+    if (playing) prerecVideo.play().catch(() => {});
+    else prerecVideo.pause();
+    drawHud();
+    return;
+  }
+  doomAudio.syncBgm();
   doomAudio.unlock();
 });
 document.getElementById("stepBackBtn").addEventListener("click", () => {
-  playing = false; playBtn.textContent = "Play"; drawFrame(cur - 1);
+  playing = false;
+  playBtn.textContent = "Play";
+  if (prerecActive) prerecVideo.pause();
+  drawFrame(cur - 1);
   inspectTscFrame(cur);
-  doomAudio.syncBgm(); doomAudio.onFrame(cur, labels[cur] || "");
+  doomAudio.syncBgm();
+  doomAudio.onFrame(cur, labels[cur] || "");
 });
 document.getElementById("stepFwdBtn").addEventListener("click", () => {
-  playing = false; playBtn.textContent = "Play"; drawFrame(cur + 1);
+  playing = false;
+  playBtn.textContent = "Play";
+  if (prerecActive) prerecVideo.pause();
+  drawFrame(cur + 1);
   inspectTscFrame(cur);
-  doomAudio.syncBgm(); doomAudio.onFrame(cur, labels[cur] || "");
+  doomAudio.syncBgm();
+  doomAudio.onFrame(cur, labels[cur] || "");
 });
 scrub.addEventListener("input", () => {
-  playing = false; playBtn.textContent = "Play"; drawFrame(Number(scrub.value));
+  playing = false;
+  playBtn.textContent = "Play";
+  if (prerecActive) prerecVideo.pause();
+  drawFrame(Number(scrub.value));
   inspectTscFrame(cur);
   doomAudio.syncBgm();
 });
@@ -2690,6 +2865,17 @@ document.getElementById("shareBtn").addEventListener("click", async () => {
 
 document.getElementById("videoBtn").addEventListener("click", async () => {
   if (!frames.length) return;
+  if (prerecActive) {
+    const a = document.createElement("a");
+    a.href = "recordings/doom-speedrun.7427-frames.webm";
+    a.download = "doom-speedrun.7427-frames.webm";
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 1000);
+    showToast("Downloading doom-speedrun.7427-frames.webm");
+    return;
+  }
   const btn = document.getElementById("videoBtn");
   const isFirefox = navigator.userAgent.includes("Firefox");
   const candidates = isFirefox
@@ -2761,26 +2947,41 @@ let lastTick = performance.now();
 function loop(now) {
   requestAnimationFrame(loop);
   if (!playing || !frames.length) return;
-  const interval = frameMs();
-  if (now - lastTick > 4 * interval) lastTick = now - interval;
-  if (now - lastTick >= interval) {
-    const steps = Math.floor((now - lastTick) / interval);
-    lastTick += steps * interval;
-    if (cur + steps < frames.length) {
-      const prevCur = cur;
-      drawFrame(cur + steps);
-      doomAudio.syncBgm();
-      for (let k = prevCur + 1; k <= cur; k++) doomAudio.onFrame(k, labels[k] || "");
-    } else if (checking) { drawFrame(frames.length - 1); doomAudio.syncBgm(); }
-    else if (loopChk.checked) { drawFrame(0); doomAudio.onFrame(0, labels[0] || ""); }
-    else {
-      const prevCur = cur;
-      drawFrame(frames.length - 1);
-      for (let k = prevCur + 1; k <= cur; k++) doomAudio.onFrame(k, labels[k] || "");
-      playing = false;
-      playBtn.textContent = "Play";
-      doomAudio.syncBgm();
+  if (prerecActive) {
+    if (prerecVideo.readyState >= 2) {
+      ctx.drawImage(prerecVideo, 0, 0, 960, 600);
+      const vFrame = Math.max(0, Math.min(frames.length - 1, Math.floor(prerecVideo.currentTime * 35 + 0.001)));
+      if (vFrame !== cur) {
+        drawFrame(vFrame, true);
+        if (tscSlideAuto && (vFrame % 12 === 0 || vFrame === frames.length - 1)) {
+          updateTscSlideshow();
+        }
+      }
     }
+    return;
+  }
+  const interval = frameMs();
+  if (now - lastTick < interval) return;
+  const steps = Math.floor((now - lastTick) / interval);
+  lastTick += steps * interval;
+  if (cur + steps < frames.length) {
+    const prevCur = cur;
+    drawFrame(cur + steps);
+    doomAudio.syncBgm();
+    for (let k = prevCur + 1; k <= cur; k++) doomAudio.onFrame(k, labels[k] || "");
+  } else if (checking) {
+    drawFrame(frames.length - 1);
+    doomAudio.syncBgm();
+  } else if (loopChk.checked) {
+    drawFrame(0);
+    doomAudio.onFrame(0, labels[0] || "");
+  } else {
+    const prevCur = cur;
+    drawFrame(frames.length - 1);
+    for (let k = prevCur + 1; k <= cur; k++) doomAudio.onFrame(k, labels[k] || "");
+    playing = false;
+    playBtn.textContent = "Play";
+    doomAudio.syncBgm();
   }
 }
 
@@ -2952,6 +3153,11 @@ importInput.addEventListener("change", async () => {
 // A run read back from OPFS by restoreRun (a reload, or Import run): show what
 // was checked and continue the check where it stopped.
 function showRestored(run) {
+  if (prerecActive) {
+    prerecActive = false;
+    prerecMutedByPolicy = false;
+    prerecVideo.pause();
+  }
   fpsSel.value = String(run.x || 1);
   checkerSel.value = run.checker;
   // Runs saved by a checker the page no longer offers continue on tsgo-doom (the worker falls back too).
@@ -3087,6 +3293,9 @@ function recordTscChunkInspection(chunkNum, insp) {
 }
 function ensureTscChunkHistory() {
   if (!tscSlideAuto && tscLockedHistory?.length) return tscLockedHistory;
+  if (prerecActive && (tscBootInspection || tscInspection)) {
+    return buildSyntheticFrameHistory(cur);
+  }
   const insp = tscInspection || tscBootInspection;
   if (!insp) return [];
   const c = Math.max(1, curChunk || 1);
@@ -3217,12 +3426,16 @@ function updateTscSlideshow(forceRender = false) {
     const cNum = curChunk || 1;
     const target = Math.max(estChunks, curChunk + 2);
     const history = ensureTscChunkHistory();
-    if (tscSlideAuto) {
-      tscSlideIdx = history.length - 1;
-    }
-    if (!tscSlideAuto && tscLockedSubText) {
-      tscSlideSubEl.textContent = tscLockedSubText;
-    } else if (checking) {
+  if (tscSlideAuto) {
+    tscSlideIdx = prerecActive ? Math.min(cur % Math.max(1, history.length), Math.max(0, history.length - 1)) : history.length - 1;
+  }
+  if (!tscSlideAuto && tscLockedSubText) {
+    tscSlideSubEl.textContent = tscLockedSubText;
+  } else if (prerecActive) {
+    const activeSlide = history[tscSlideIdx]?.slides?.[0] || insp.slides?.[0];
+    const lbl = labels[cur] ? ` · input: ${labels[cur]}` : "";
+    tscSlideSubEl.textContent = `Frame ${cur + 1}/${frames.length}${lbl} — ${activeSlide ? `evaluating ${activeSlide.fnName}() at basic block $b${activeSlide.block} in doom-keys.cfg.ts` : "inspecting CFG blocks"}. Click any timeline row or editor tic line to lock.`;
+  } else if (checking) {
       const pausedNote = !tscSlideAuto ? " (Auto-Step paused)" : "";
       tscSlideSubEl.textContent = `Frame ${frames.length + 1} · chunk ${cNum}/~${target}${lastTscText ? ` (${lastTscText})` : stageText ? ` (${stageText})` : ""} — evaluating ${insp.fnName}() at basic block $b${insp.headBlock}${pausedNote}`;
     } else if (tscMidFrame) {
@@ -3285,7 +3498,9 @@ setInterval(() => {
   if (!tscSlideAuto) return;
   const history = ensureTscChunkHistory();
   if (!history.length) return;
-  tscSlideIdx = history.length - 1;
+  tscSlideIdx = prerecActive
+    ? Math.min(cur % Math.max(1, history.length), Math.max(0, history.length - 1))
+    : history.length - 1;
   const activeSlides = history[tscSlideIdx]?.slides || [];
   if (activeSlides.length > 1) {
     tscSubSlideIdx = (tscSubSlideIdx + 1) % activeSlides.length;
@@ -3299,9 +3514,11 @@ function requestIdleInspection() {
     if (m.kind === "inspected") {
       if (m.bootInspection) tscBootInspection = decodeInspection(m.bootInspection);
       if (m.inspection) tscInspection = decodeInspection(m.inspection);
-      tscMidFrame = !m.done && (m.chunks > 0 || frames.length > 0);
-      if (m.chunks > 0 && !curChunk) curChunk = m.chunks;
-      recordTscChunkInspection(curChunk || 1, tscInspection || tscBootInspection);
+      tscMidFrame = !prerecActive && !m.done && (m.chunks > 0 || frames.length > 0);
+      if (!prerecActive) {
+        if (m.chunks > 0 && !curChunk) curChunk = m.chunks;
+        recordTscChunkInspection(curChunk || 1, tscInspection || tscBootInspection);
+      }
       updateTscSlideshow();
       updateEditorStatusDecorations();
     }
@@ -3629,7 +3846,7 @@ monacoEditor.onMouseMove((e) => {
     estStatusPill.textContent = checking ? "COMPILING NOW" : "PAUSED MID-TIC";
   } else if (isRendered) {
     estStatusPill.className = "est-pill est-pill-done";
-    estStatusPill.textContent = "RENDERED";
+    estStatusPill.textContent = prerecActive ? "PRE-RECORDED" : "RENDERED";
   } else {
     estStatusPill.className = "est-pill est-pill-pending";
     estStatusPill.textContent = "PENDING";
@@ -3650,6 +3867,18 @@ monacoEditor.onMouseMove((e) => {
   if (rgbaToDraw) {
     editorTooltipCanvas.hidden = false;
     drawRgbaToSmallCanvas(rgbaToDraw, estCtx, estImg, estU32);
+  } else if (prerecActive && isRendered && estCtx) {
+    editorTooltipCanvas.hidden = false;
+    if (Math.abs(previewFrameIdx - cur) <= 1 && prerecVideo.readyState >= 2) {
+      estCtx.drawImage(prerecVideo, 0, 0, 320, 200);
+    } else {
+      const targetTime = (previewFrameIdx + 0.25) / 35;
+      if (Math.abs(prerecHoverVideo.currentTime - targetTime) > 0.01) {
+        try { prerecHoverVideo.currentTime = targetTime; } catch {}
+      } else if (prerecHoverVideo.readyState >= 2) {
+        estCtx.drawImage(prerecHoverVideo, 0, 0, 320, 200);
+      }
+    }
   } else {
     editorTooltipCanvas.hidden = true;
   }
@@ -3686,6 +3915,7 @@ monacoEditor.onMouseDown((e) => {
   if (entry.startFrame < frames.length) {
     playing = false;
     playBtn.textContent = "Play";
+    if (prerecActive) prerecVideo.pause();
     const targetFrame = (cur >= entry.startFrame && cur < Math.min(entry.endFrame, frames.length - 1))
       ? cur + 1
       : entry.startFrame;
@@ -3705,19 +3935,37 @@ monacoEditor.onMouseDown((e) => {
 
 const restored = await decodeHash(location.hash).catch(() => null);
 const hashText = restored && typeof restored.t === "string" ? restored.t : undefined;
+const qp = new URLSearchParams(location.search);
+const presetParam = qp.get("preset");
 const run = await restoreRun(hashText);
-if (run) {
+if (hashText !== undefined) {
+  if (run) {
+    showRestored(run);
+    if (!run.ended) showToast(run.frames.length ? `Resuming: ${run.frames.length} frames already checked` : "Resuming the check");
+  } else {
+    if (restored.x) fpsSel.value = String(restored.x);
+    showScript(restored.t);
+    await runCurrent();
+  }
+} else if (presetParam) {
+  loadPreset(presetParam);
+  if (presetParam === "ep1_tas") {
+    await startPrerecordedSession();
+  } else {
+    await runCurrent();
+  }
+} else if (run && !run.ended && run.frames.length > 0 && !run.t.includes(window.PRESETS.tas.note) && !run.t.includes(window.PRESETS.ep1_tas.note)) {
   showRestored(run);
-  if (!run.ended) showToast(run.frames.length ? `Resuming: ${run.frames.length} frames already checked` : "Resuming the check");
-} else if (hashText !== undefined) {
-  if (restored.x) fpsSel.value = String(restored.x);
-  showScript(restored.t);
-  await runCurrent();
+  showToast(`Resuming: ${run.frames.length} frames already checked`);
 } else {
-  const qp = new URLSearchParams(location.search);
-  loadPreset(qp.get("preset") || "tas");
-  await runCurrent();
-  if (qp.get("f") !== null) { playing = false; playBtn.textContent = "Play"; drawFrame(Number(qp.get("f"))); }
+  loadPreset("ep1_tas");
+  await startPrerecordedSession();
+}
+if (qp.get("f") !== null) {
+  playing = false;
+  playBtn.textContent = "Play";
+  if (prerecActive) prerecVideo.pause();
+  drawFrame(Number(qp.get("f")));
 }
 requestAnimationFrame(loop);
 </script>
