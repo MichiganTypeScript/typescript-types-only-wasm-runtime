@@ -617,47 +617,46 @@
 
 <main id="editorTab">
   <section class="card">
-    <div id="liveBanner" class="live-banner" role="status" aria-live="polite">
-      <div class="live-banner-top">
-        <span id="recDot" class="rec-dot"></span>
-        <strong id="liveTitle">RECORDING FRAME 1 / 277 IN TYPESCRIPT...</strong>
-        <span id="liveBadge" class="live-badge">Chunk 1/~71 &middot; 0s</span>
-      </div>
-      <div id="liveSub" class="live-sub">
-        <span id="liveSubText">Live type-checking Doom (~20&ndash;30s per frame, ~35&ndash;70 chunks). Keep this tab open; frames auto-save as they finish.</span>
-        <button type="button" class="inline-link" id="bannerWatchBtn">Pre-recorded videos &amp; saved runs &rarr;</button>
-      </div>
-      <div class="live-bar" title="Overall run progress across all frames"><div id="liveBarFill" class="live-bar-fill" style="width:0%"></div></div>
-    </div>
-    <div id="screenWrap">
-      <canvas id="screen" width="960" height="600"></canvas>
-      <div id="screenOverlay" class="screen-overlay">
-        <div class="overlay-rec-pill">
-          <span class="rec-dot" id="overlayDot"></span>
-          <span id="overlayPillText">LIVE TYPE-CHECK RECORDING IN PROGRESS — THIS TAKES A WHILE</span>
+      <div id="liveBanner" class="live-banner done" role="status" aria-live="polite">
+        <div class="live-banner-top">
+          <span id="recDot" class="rec-dot done"></span>
+          <strong id="liveTitle">PRE-RECORDED EPISODE 1 UV-SPEED TAS &mdash; ALL 7427 FRAMES (E1M1&ndash;E1M8)</strong>
+          <span id="liveBadge" class="live-badge">1 / 7427 frames</span>
         </div>
-        <div id="overlayTitle" class="overlay-title">TypeScript is compiling Frame 1 of 277...</div>
-        <div id="overlaySub" class="overlay-sub">Checking chunk 1 of ~71 in tsgo-doom (0s elapsed)</div>
-        <div class="overlay-bar"><div id="overlayBarFill" class="overlay-bar-fill" style="width:6%"></div></div>
-        <div class="overlay-guide">
-          <div class="overlay-guide-title">First time here? How this works &amp; what to expect:</div>
-          <ul>
-            <li><b>Why it takes a while:</b> There is no JS game engine here — Doom runs 100% inside the TypeScript type checker (<code>tsgo</code> / <code>tsrs</code>). Each frame takes ~35–70 type-check passes ("chunks", ~20–30s per frame).</li>
-            <li><b>Where frames appear:</b> Stay on this tab! Frame 1 will draw right on this screen as soon as its chunks finish. You can Play, Step, or Scrub finished frames while Frame 2+ keep recording in the background.</li>
-            <li><b>Edit inputs or skip the wait:</b> Edit <code>type Inputs = Run&lt;[ ... ]&gt;</code> on the right and press <b>Run</b>, or <button type="button" class="inline-link" id="overlayWatchBtn">watch a pre-recorded full run (1000× speed) &rarr;</button></li>
-          </ul>
+        <div id="liveSub" class="live-sub">
+          <span id="liveSubText">Playing pre-recorded 7,427-frame speedrun checked by TypeScript (tsgo-doom). Scrub timeline, hover/click any tic in the editor, or edit &amp; click Run to live type-check.</span>
+          <button type="button" class="inline-link" id="bannerWatchBtn">Pre-recorded videos &amp; saved runs &rarr;</button>
         </div>
+        <div class="live-bar" title="Overall run progress across all frames"><div id="liveBarFill" class="live-bar-fill done" style="width:100%"></div></div>
       </div>
-      <div id="hud">loading…</div>
-    </div>
-
-    <div class="row">
-      <button id="playBtn">Pause</button>
-      <button id="stepBackBtn" title="Step -1 frame">&larr;</button>
-      <button id="stepFwdBtn" title="Step +1 frame">&rarr;</button>
-      <input id="scrub" type="range" min="0" max="0" value="0" />
-      <span id="frameLabel" class="meta">0 / 0</span>
-    </div>
+      <div id="screenWrap">
+        <canvas id="screen" width="960" height="600"></canvas>
+        <div id="screenOverlay" class="screen-overlay" hidden>
+          <div class="overlay-rec-pill">
+            <span class="rec-dot" id="overlayDot"></span>
+            <span id="overlayPillText">LIVE TYPE-CHECK RECORDING IN PROGRESS &mdash; THIS TAKES A WHILE</span>
+          </div>
+          <div id="overlayTitle" class="overlay-title">TypeScript is compiling Frame 1 of 7427...</div>
+          <div id="overlaySub" class="overlay-sub">Checking chunk 1 of ~71 in tsgo-doom (0s elapsed)</div>
+          <div class="overlay-bar"><div id="overlayBarFill" class="overlay-bar-fill" style="width:6%"></div></div>
+          <div class="overlay-guide">
+            <div class="overlay-guide-title">First time here? How this works &amp; what to expect:</div>
+            <ul>
+              <li><b>Why it takes a while:</b> There is no JS game engine here &mdash; Doom runs 100% inside the TypeScript type checker (<code>tsgo</code> / <code>tsrs</code>). Each frame takes ~35&ndash;70 type-check passes ("chunks", ~20&ndash;30s per frame).</li>
+              <li><b>Where frames appear:</b> Stay on this tab! Frame 1 will draw right on this screen as soon as its chunks finish. You can Play, Step, or Scrub finished frames while Frame 2+ keep recording in the background.</li>
+              <li><b>Edit inputs or skip the wait:</b> Edit <code>type Inputs = Run&lt;[ ... ]&gt;</code> on the right and press <b>Run</b>, or <button type="button" class="inline-link" id="overlayWatchBtn">watch a pre-recorded full run (1000&times; speed) &rarr;</button></li>
+            </ul>
+          </div>
+        </div>
+        <div id="hud">loading...</div>
+      </div>
+      <div class="row">
+        <button id="playBtn">Pause</button>
+        <button id="stepBackBtn" title="Step -1 frame">&larr;</button>
+        <button id="stepFwdBtn" title="Step +1 frame">&rarr;</button>
+        <input id="scrub" type="range" min="0" max="7426" value="0" />
+        <span id="frameLabel" class="meta">1 / 7427</span>
+      </div>
 
     <div class="row">
       <label class="meta">Speed
@@ -1531,13 +1530,18 @@ async function restoreRun(wantText) {
     const saved = JSON.parse(await savedFile.text());
     const savedText = normalizeScriptText(saved.meta.t);
     if (wantText !== undefined && normalizeScriptText(wantText) !== savedText) return null;
+    const endName = usedTabMeta ? END_FILE : "end.json";
+    const endObj = await read(endName).then(async (f) => { try { return JSON.parse(await f.text()); } catch { return {}; } }, () => null);
+    const ended = endObj !== null;
+    if (wantText === undefined && (ended || savedText.includes(window.PRESETS.tas.note) || savedText.includes(window.PRESETS.ep1_tas.note))) return null;
     // frame n at n * FRAME_BYTES; a torn last frame is dropped and checked again
     const FRAME_BYTES = 320 * 200 * 4;
     const files = saved.files ?? saved.runId;
     const all = await (await read(`${files}-frames.rgba`).catch(() => null))?.arrayBuffer();
     const restoredFrames = [];
-    for (let at = 0; all && at + FRAME_BYTES <= all.byteLength; at += FRAME_BYTES)
+    for (let at = 0; all && at + FRAME_BYTES <= all.byteLength; at += FRAME_BYTES) {
       restoredFrames.push(new Uint32Array(all.slice(at, at + FRAME_BYTES)));
+    }
     let ckpt = null;
     for (const i of [0, 1]) {
       try {
@@ -1547,9 +1551,6 @@ async function restoreRun(wantText) {
         if (c && (!ckpt || c.seq > ckpt.seq)) ckpt = c;
       } catch {}
     }
-    const endName = usedTabMeta ? END_FILE : "end.json";
-    const endObj = await read(endName).then(async (f) => { try { return JSON.parse(await f.text()); } catch { return {}; } }, () => null);
-    const ended = endObj !== null;
     const elapsedMs = endObj?.ms ?? ckpt?.point?.elapsedMs ?? (saved.meta.startedAt ? Math.max(0, Date.now() - saved.meta.startedAt) : 0);
     return { ...saved.meta, t: savedText, runId: saved.runId, checker: saved.checker, keyScript: saved.keyScript, frames: restoredFrames, ended, elapsedMs };
   } catch {
@@ -2278,7 +2279,7 @@ function drawHud() {
   drawTimeline();
 }
 function updateLiveStatus(elapsed) {
-  const total = labels.length || 277;
+  const total = labels.length || 7427;
   const nextFrame = Math.min(total, frames.length + 1);
   const targetChunks = Math.max(estChunks, curChunk + 2);
   const checkerLabel = checkerSel.selectedOptions[0]?.textContent?.split(" ")[0] || checkerSel.value || "tsgo-doom";
@@ -2471,15 +2472,23 @@ function drawFrame(idx, fromPrerecVideo = false) {
 setInterval(() => { if (checking) { drawHud(); doomAudio.syncBgm(); } }, 1000);
 
 async function runCurrent() {
-  try {
-    try { localStorage.setItem("doom-checker", checkerSel.value); } catch {}
-    if (location.hash) {
-      const h = await decodeHash(location.hash).catch(() => null);
-      if (!h || normalizeScriptText(h.t) !== normalizeScriptText(editor.value)) {
-        history.replaceState(null, "", location.pathname + location.search);
-      }
+  try { localStorage.setItem("doom-checker", checkerSel.value); } catch {}
+  if (location.hash) {
+    const h = await decodeHash(location.hash).catch(() => null);
+    if (!h || normalizeScriptText(h.t) !== normalizeScriptText(editor.value)) {
+      history.replaceState(null, "", location.pathname + location.search);
     }
-    hud.textContent = "resolving type Inputs…";
+  }
+  const isUneditedEp1Tas = (!editorEdited && presetSel.value === "ep1_tas") ||
+    normalizeScriptText(editor.value) === normalizeScriptText(presetText("ep1_tas"));
+  if (isUneditedEp1Tas) {
+    prerecMutedByPolicy = false;
+    await startPrerecordedSession();
+    doomAudio.unlock();
+    return;
+  }
+  hud.textContent = "resolving type Inputs...";
+  try {
     const script = await evalScript();
     if (!script.length) { showToast("Script is empty"); return; }
     execute(script);
@@ -2804,10 +2813,8 @@ presetSel.addEventListener("change", () => {
   // Replacing the editor would drop the user's edits; ask first.
   if (!editorEdited || confirm("Replace your edits with this preset?")) {
     loadPreset(name);
-    if (!checking) {
-      if (name === "ep1_tas") startPrerecordedSession();
-      else if (prerecActive) stopPrerecordedSession();
-    }
+    if (name === "ep1_tas") startPrerecordedSession();
+    else if (prerecActive) stopPrerecordedSession();
   } else presetSel.value = "custom";
 });
 editorModel.onDidChangeContent(() => { if (!settingEditor) { presetSel.value = "custom"; editorEdited = true; } });
@@ -3163,21 +3170,9 @@ function showRestored(run) {
   // Runs saved by a checker the page no longer offers continue on tsgo-doom (the worker falls back too).
   if (!checkerSel.value) checkerSel.value = "tsgo-doom";
   try { localStorage.setItem("doom-checker", checkerSel.value); } catch {}
-  if (run.t.startsWith(`// Based on: ${window.PRESETS.ep1_tas.note}`) && (!run.t.includes("weapon:") || !run.t.includes("extendDemo:") || (run.ended && run.frames.length < 7427))) {
-    run.ended = false;
-    frames = run.frames;
-    presetSel.value = "ep1_tas";
-    editorEdited = false;
-    editor.value = presetText("ep1_tas");
-    const steps = stepsFromLmp(window.PRESETS.ep1_tas);
-    const stepLabels = labelsOf(steps);
-    execute(steps.map((st, i) => ({ ...st, label: stepLabels[i] })));
-    cur = Math.max(0, frames.length - 1);
-    scrub.max = String(cur);
-    playing = true;
-    playBtn.textContent = "Pause";
-    drawFrame(cur);
-    updateEditorStatusDecorations();
+  if (run.t.startsWith(`// Based on: ${window.PRESETS.ep1_tas.note}`) && (!run.t.includes("weapon:") || !run.t.includes("extendDemo:") || normalizeScriptText(run.t) === normalizeScriptText(presetText("ep1_tas")))) {
+    loadPreset("ep1_tas");
+    startPrerecordedSession();
     return;
   }
   showScript(run.t);
@@ -3939,7 +3934,10 @@ const qp = new URLSearchParams(location.search);
 const presetParam = qp.get("preset");
 const run = await restoreRun(hashText);
 if (hashText !== undefined) {
-  if (run) {
+  if (normalizeScriptText(hashText) === normalizeScriptText(presetText("ep1_tas"))) {
+    loadPreset("ep1_tas");
+    await startPrerecordedSession();
+  } else if (run) {
     showRestored(run);
     if (!run.ended) showToast(run.frames.length ? `Resuming: ${run.frames.length} frames already checked` : "Resuming the check");
   } else {
