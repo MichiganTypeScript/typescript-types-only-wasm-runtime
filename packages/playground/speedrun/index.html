@@ -1124,7 +1124,7 @@ ${idle ? `${noneLines(idleAt - startAt - 1, "the demo plays; keys are ignored")}
 ${extendLines(idleWords, use ? (use[0] - DEMO_AT) / 4 - tics.length : undefined, use?.[1]).map((l) => "      " + l).join("\n")}
     ];
   },
-${noneLines(steps.length - idleAt - 1)}${use ? `  { setDemoTic: [${(use[0] - DEMO_AT) / 4}, ${moveType(use[1])}]; },\n` : ""}`}` : `${noneLines(steps.length - startAt - 1, "the demo plays; keys are ignored")}`}];
+${noneLines(steps.length - idleAt - 1)}${use ? `  { setDemoTic: [${(use[0] - DEMO_AT) / 4}, ${moveType(use[1])}]; },\n` : ""}`}` : `${noneLines(steps.length - startAt - 1, "the demo plays; keys are ignored")}`}]>;
 `;
 }
 
@@ -2957,10 +2957,21 @@ function showRestored(run) {
   // Runs saved by a checker the page no longer offers continue on tsgo-doom (the worker falls back too).
   if (!checkerSel.value) checkerSel.value = "tsgo-doom";
   try { localStorage.setItem("doom-checker", checkerSel.value); } catch {}
-  if (run.t.startsWith(`// Based on: ${window.PRESETS.ep1_tas.note}`) && (!run.t.includes("weapon:") || !run.t.includes("extendDemo:"))) {
+  if (run.t.startsWith(`// Based on: ${window.PRESETS.ep1_tas.note}`) && (!run.t.includes("weapon:") || !run.t.includes("extendDemo:") || (run.ended && run.frames.length < 7427))) {
+    run.ended = false;
     frames = run.frames;
-    loadPreset("ep1_tas");
-    runCurrent();
+    presetSel.value = "ep1_tas";
+    editorEdited = false;
+    editor.value = presetText("ep1_tas");
+    const steps = stepsFromLmp(window.PRESETS.ep1_tas);
+    const stepLabels = labelsOf(steps);
+    execute(steps.map((st, i) => ({ ...st, label: stepLabels[i] })));
+    cur = Math.max(0, frames.length - 1);
+    scrub.max = String(cur);
+    playing = true;
+    playBtn.textContent = "Pause";
+    drawFrame(cur);
+    updateEditorStatusDecorations();
     return;
   }
   showScript(run.t);
