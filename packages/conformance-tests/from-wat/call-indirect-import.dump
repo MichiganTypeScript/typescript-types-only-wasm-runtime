@@ -1,0 +1,380 @@
+Module {
+    span: Span {
+        offset: 391,
+    },
+    id: None,
+    name: None,
+    kind: Text(
+        [
+            Type(
+                Type {
+                    span: Span {
+                        offset: 401,
+                    },
+                    id: Some(
+                        "t0",
+                    ),
+                    name: None,
+                    def: Func(
+                        FunctionType {
+                            params: [
+                                (
+                                    None,
+                                    None,
+                                    I32,
+                                ),
+                                (
+                                    None,
+                                    None,
+                                    I32,
+                                ),
+                            ],
+                            results: [
+                                I32,
+                            ],
+                        },
+                    ),
+                    parent: None,
+                    final_type: None,
+                },
+            ),
+            Import(
+                Import {
+                    span: Span {
+                        offset: 451,
+                    },
+                    module: "env",
+                    field: "imported_add",
+                    item: ItemSig {
+                        span: Span {
+                            offset: 480,
+                        },
+                        id: Some(
+                            "imported_add",
+                        ),
+                        name: None,
+                        kind: Func(
+                            TypeUse {
+                                index: Some(
+                                    Id(
+                                        "t0",
+                                    ),
+                                ),
+                                inline: None,
+                            },
+                        ),
+                    },
+                },
+            ),
+            Func(
+                Func {
+                    span: Span {
+                        offset: 516,
+                    },
+                    id: Some(
+                        "add",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [],
+                    },
+                    kind: Inline {
+                        locals: [],
+                        expression: Expression {
+                            instrs: [
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                LocalGet(
+                                    Id(
+                                        "b",
+                                    ),
+                                ),
+                                I32Add,
+                            ],
+                        },
+                    },
+                    ty: TypeUse {
+                        index: Some(
+                            Id(
+                                "t0",
+                            ),
+                        ),
+                        inline: Some(
+                            FunctionType {
+                                params: [
+                                    (
+                                        Some(
+                                            "a",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                    (
+                                        Some(
+                                            "b",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                ],
+                                results: [
+                                    I32,
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ),
+            Func(
+                Func {
+                    span: Span {
+                        offset: 634,
+                    },
+                    id: Some(
+                        "multiply",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [],
+                    },
+                    kind: Inline {
+                        locals: [],
+                        expression: Expression {
+                            instrs: [
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                LocalGet(
+                                    Id(
+                                        "b",
+                                    ),
+                                ),
+                                I32Mul,
+                            ],
+                        },
+                    },
+                    ty: TypeUse {
+                        index: Some(
+                            Id(
+                                "t0",
+                            ),
+                        ),
+                        inline: Some(
+                            FunctionType {
+                                params: [
+                                    (
+                                        Some(
+                                            "a",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                    (
+                                        Some(
+                                            "b",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                ],
+                                results: [
+                                    I32,
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ),
+            Table(
+                Table {
+                    span: Span {
+                        offset: 757,
+                    },
+                    id: Some(
+                        "T0",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [],
+                    },
+                    kind: Normal {
+                        ty: TableType {
+                            limits: Limits {
+                                min: 3,
+                                max: Some(
+                                    3,
+                                ),
+                            },
+                            elem: RefType {
+                                nullable: true,
+                                heap: Func,
+                            },
+                        },
+                        init_expr: None,
+                    },
+                },
+            ),
+            Elem(
+                Elem {
+                    span: Span {
+                        offset: 859,
+                    },
+                    id: Some(
+                        "e0",
+                    ),
+                    name: None,
+                    kind: Active {
+                        table: Num(
+                            0,
+                            Span {
+                                offset: 859,
+                            },
+                        ),
+                        offset: Expression {
+                            instrs: [
+                                I32Const(
+                                    0,
+                                ),
+                            ],
+                        },
+                    },
+                    payload: Indices(
+                        [
+                            Id(
+                                "imported_add",
+                            ),
+                            Id(
+                                "add",
+                            ),
+                            Id(
+                                "multiply",
+                            ),
+                        ],
+                    ),
+                },
+            ),
+            Func(
+                Func {
+                    span: Span {
+                        offset: 921,
+                    },
+                    id: Some(
+                        "entry",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [
+                            "entry",
+                        ],
+                    },
+                    kind: Inline {
+                        locals: [],
+                        expression: Expression {
+                            instrs: [
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                LocalGet(
+                                    Id(
+                                        "b",
+                                    ),
+                                ),
+                                I32Const(
+                                    1,
+                                ),
+                                CallIndirect(
+                                    CallIndirect {
+                                        table: Id(
+                                            "T0",
+                                        ),
+                                        ty: TypeUse {
+                                            index: Some(
+                                                Id(
+                                                    "t0",
+                                                ),
+                                            ),
+                                            inline: None,
+                                        },
+                                    },
+                                ),
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                LocalGet(
+                                    Id(
+                                        "b",
+                                    ),
+                                ),
+                                I32Const(
+                                    2,
+                                ),
+                                CallIndirect(
+                                    CallIndirect {
+                                        table: Id(
+                                            "T0",
+                                        ),
+                                        ty: TypeUse {
+                                            index: Some(
+                                                Id(
+                                                    "t0",
+                                                ),
+                                            ),
+                                            inline: None,
+                                        },
+                                    },
+                                ),
+                                I32Add,
+                            ],
+                        },
+                    },
+                    ty: TypeUse {
+                        index: None,
+                        inline: Some(
+                            FunctionType {
+                                params: [
+                                    (
+                                        Some(
+                                            "a",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                    (
+                                        Some(
+                                            "b",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                ],
+                                results: [
+                                    I32,
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ),
+        ],
+    ),
+}
+
+
+
+
+{
+    "LocalGet": 8,
+    "I32Add": 2,
+    "I32Const": 2,
+    "CallIndirect": 2,
+    "I32Mul": 1,
+}

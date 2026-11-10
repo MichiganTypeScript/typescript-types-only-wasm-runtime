@@ -7,7 +7,6 @@ type $__wasm_call_ctors = Satisfies<Func, {
   resultTypes: [];
   locals: [];
   instructions: [
-    { kind: 'Nop'; ziltoid: 'theOmniscient' },
   ];
 }>
 

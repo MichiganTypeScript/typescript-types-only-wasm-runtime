@@ -31,7 +31,7 @@ export const config = {
   stopAt: Infinity,
   digits: 8,
   shouldComputeFullStats: false,
-  incrementBy: 50,
+  incrementBy: 10,
   comeUpForAirEvery: 1_000,
   transcendTheAstralPlane: 10_000,
   readStringFromMemory: true,

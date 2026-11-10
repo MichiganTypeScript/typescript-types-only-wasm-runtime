@@ -1,4 +1,4 @@
-import { AddBinaryFixed } from "./add";
+import { Add32Nibble } from "./add";
 import { WasmValue, Wasm } from "./wasm";
 import type { Satisfies } from './utils'
 
@@ -40,11 +40,11 @@ export namespace Load {
 
     // WARNING using AddBinary here is dangerous because it can overflow past I32 but the other (safer) option is to use Wasm.I32Add which does a Clamp, which is very expensive.
     // this is such an incredibly hot path for memory management that if we actually overflow here.. well.. that's gonna be a rough debugging day.  just gonna have to hope that doesn't happen.
-    _b1 extends string = memory[AddBinaryFixed<address, '00000000000000000000000000000001'>],
+    _b1 extends string = memory[Add32Nibble<address, '00000000000000000000000000000001'>],
     _b0 extends string = memory[address],
   > =
     `${
-      Read1Byte<L1Cache, memory, AddBinaryFixed<address, '00000000000000000000000000000001'>>
+      Read1Byte<L1Cache, memory, Add32Nibble<address, '00000000000000000000000000000001'>>
     }${
       Read1Byte<L1Cache, memory, address>
     }`
@@ -61,11 +61,11 @@ export namespace Load {
     address extends WasmValue,
   > =
     `${
-      Read1Byte<L1Cache, memory, AddBinaryFixed<address, '00000000000000000000000000000011'>>
+      Read1Byte<L1Cache, memory, Add32Nibble<address, '00000000000000000000000000000011'>>
     }${
-      Read1Byte<L1Cache, memory, AddBinaryFixed<address, '00000000000000000000000000000010'>>
+      Read1Byte<L1Cache, memory, Add32Nibble<address, '00000000000000000000000000000010'>>
     }${
-      Read1Byte<L1Cache, memory, AddBinaryFixed<address, '00000000000000000000000000000001'>>
+      Read1Byte<L1Cache, memory, Add32Nibble<address, '00000000000000000000000000000001'>>
     }${
       Read1Byte<L1Cache, memory, address>
     }`
@@ -82,19 +82,19 @@ export namespace Load {
     address extends WasmValue,
   > =
     `${
-      Read1Byte<L1Cache, memory, AddBinaryFixed<address, '00000000000000000000000000000111'>>
+      Read1Byte<L1Cache, memory, Add32Nibble<address, '00000000000000000000000000000111'>>
     }${
-      Read1Byte<L1Cache, memory, AddBinaryFixed<address, '00000000000000000000000000000110'>>
+      Read1Byte<L1Cache, memory, Add32Nibble<address, '00000000000000000000000000000110'>>
     }${
-      Read1Byte<L1Cache, memory, AddBinaryFixed<address, '00000000000000000000000000000101'>>
+      Read1Byte<L1Cache, memory, Add32Nibble<address, '00000000000000000000000000000101'>>
     }${
-      Read1Byte<L1Cache, memory, AddBinaryFixed<address, '00000000000000000000000000000100'>>
+      Read1Byte<L1Cache, memory, Add32Nibble<address, '00000000000000000000000000000100'>>
     }${
-      Read1Byte<L1Cache, memory, AddBinaryFixed<address, '00000000000000000000000000000011'>>
+      Read1Byte<L1Cache, memory, Add32Nibble<address, '00000000000000000000000000000011'>>
     }${
-      Read1Byte<L1Cache, memory, AddBinaryFixed<address, '00000000000000000000000000000010'>>
+      Read1Byte<L1Cache, memory, Add32Nibble<address, '00000000000000000000000000000010'>>
     }${
-      Read1Byte<L1Cache, memory, AddBinaryFixed<address, '00000000000000000000000000000001'>>
+      Read1Byte<L1Cache, memory, Add32Nibble<address, '00000000000000000000000000000001'>>
     }${
       Read1Byte<L1Cache, memory, address>
     }`

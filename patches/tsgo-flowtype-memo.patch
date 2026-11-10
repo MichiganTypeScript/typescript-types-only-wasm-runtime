@@ -1,0 +1,150 @@
+diff --git a/internal/ast/nodeflags.go b/internal/ast/nodeflags.go
+index 2c808601..3886baf4 100644
+--- a/internal/ast/nodeflags.go
++++ b/internal/ast/nodeflags.go
+@@ -45,6 +45,10 @@ const (
+ 	NodeFlagsPossiblyContainsDeprecatedTag NodeFlags = 1 << 26 // Set during parse if comment text contains '@deprecated'; must confirm via JSDoc lookup
+ 	NodeFlagsUnreachable                   NodeFlags = 1 << 27 // If node is unreachable according to the binder
+ 	NodeFlagsReparserTransformedLiteral    NodeFlags = 1 << 28 // If node was transformed during parsing, making its' naive text source not match the AST
++	// Set by the checker (getConditionalFlowTypeOfType) to memoize that no ancestor of this node,
++	// up to the enclosing statement, can contribute an implied constraint. Deeply nested type
++	// expressions otherwise re-walk the same ancestor chain once per contained type node.
++	NodeFlagsCondFlowClean NodeFlags = 1 << 29
+ 
+ 	NodeFlagsBlockScoped = NodeFlagsLet | NodeFlagsConst | NodeFlagsUsing
+ 	NodeFlagsConstant    = NodeFlagsConst | NodeFlagsUsing
+diff --git a/internal/checker/checker.go b/internal/checker/checker.go
+index 8c9eac4a..2be62fb3 100644
+--- a/internal/checker/checker.go
++++ b/internal/checker/checker.go
+@@ -22459,14 +22459,13 @@ func (c *Checker) getObjectTypeInstantiation(t *Type, m *TypeMapper, alias *Type
+ 	return result
+ }
+ 
+-func (c *Checker) isTypeParameterPossiblyReferenced(tp *Type, node *ast.Node) bool {
++func (c *Checker) typeParameterReferenceInSubtree(tp *Type, node *ast.Node) bool {
+ 	var containsReference func(*ast.Node) bool
+ 	containsReference = func(node *ast.Node) bool {
+ 		switch node.Kind {
+ 		case ast.KindThisType:
+ 			return tp.AsTypeParameter().isThisType
+ 		case ast.KindTypeReference:
+-			// use worker because we're looking for === equality
+ 			if !tp.AsTypeParameter().isThisType && len(node.TypeArguments()) == 0 && c.getSymbolFromTypeReference(node) == tp.symbol {
+ 				return true
+ 			}
+@@ -22475,13 +22474,13 @@ func (c *Checker) isTypeParameterPossiblyReferenced(tp *Type, node *ast.Node) bo
+ 			firstIdentifier := ast.GetFirstIdentifier(entityName)
+ 			if !ast.IsThisIdentifier(firstIdentifier) {
+ 				firstIdentifierSymbol := c.getResolvedSymbol(firstIdentifier)
+-				tpDeclaration := tp.symbol.Declarations[0] // There is exactly one declaration, otherwise `containsReference` is not called
++				tpDeclaration := tp.symbol.Declarations[0]
+ 				var tpScope *ast.Node
+ 				switch {
+ 				case ast.IsTypeParameterDeclaration(tpDeclaration):
+-					tpScope = tpDeclaration.Parent // Type parameter is a regular type parameter, e.g. foo<T>
++					tpScope = tpDeclaration.Parent
+ 				case tp.AsTypeParameter().isThisType:
+-					tpScope = tpDeclaration // Type parameter is the this type, and its declaration is the class declaration.
++					tpScope = tpDeclaration
+ 				}
+ 				if tpScope != nil {
+ 					return core.Some(firstIdentifierSymbol.Declarations, func(d *ast.Node) bool { return isNodeDescendantOf(d, tpScope) }) ||
+@@ -22498,6 +22497,53 @@ func (c *Checker) isTypeParameterPossiblyReferenced(tp *Type, node *ast.Node) bo
+ 		}
+ 		return node.ForEachChild(containsReference)
+ 	}
++	return containsReference(node)
++}
++
++func (c *Checker) filterPossiblyReferencedTypeParameters(candidates []*Type, node *ast.Node) []*Type {
++	referenced := make(map[*ast.Symbol]bool)
++	thisReferenced := false
++	uncertain := false
++	var collect func(*ast.Node) bool
++	collect = func(n *ast.Node) bool {
++		switch n.Kind {
++		case ast.KindThisType:
++			thisReferenced = true
++		case ast.KindTypeReference:
++			if len(n.TypeArguments()) == 0 {
++				if sym := c.getSymbolFromTypeReference(n); sym != nil {
++					referenced[sym] = true
++				}
++			}
++		case ast.KindTypeQuery, ast.KindMethodDeclaration, ast.KindMethodSignature:
++			uncertain = true
++		}
++		n.ForEachChild(collect)
++		return false
++	}
++	collect(node)
++	if uncertain {
++		return core.Filter(candidates, func(tp *Type) bool { return c.isTypeParameterPossiblyReferenced(tp, node) })
++	}
++	return core.Filter(candidates, func(tp *Type) bool {
++		if tp.symbol == nil || len(tp.symbol.Declarations) != 1 {
++			return true
++		}
++		container := tp.symbol.Declarations[0].Parent
++		for n := node; n != container; n = n.Parent {
++			if n == nil || ast.IsBlock(n) || ast.IsConditionalTypeNode(n) && c.typeParameterReferenceInSubtree(tp, n.AsConditionalTypeNode().ExtendsType) {
++				return true
++			}
++		}
++		if tp.AsTypeParameter().isThisType {
++			return thisReferenced
++		}
++		return referenced[tp.symbol]
++	})
++}
++
++func (c *Checker) isTypeParameterPossiblyReferenced(tp *Type, node *ast.Node) bool {
++	containsReference := func(node *ast.Node) bool { return c.typeParameterReferenceInSubtree(tp, node) }
+ 	// If the type parameter doesn't have exactly one declaration, if there are intervening statement blocks
+ 	// between the node and the type parameter declaration, if the node contains actual references to the
+ 	// type parameter, or if the node contains type queries that we can't prove couldn't contain references to the type parameter,
+@@ -22864,7 +22910,18 @@ func (c *Checker) tryGetTypeFromTypeNode(node *ast.Node) *Type {
+ }
+ 
+ func (c *Checker) getTypeFromTypeNode(node *ast.Node) *Type {
+-	return c.getConditionalFlowTypeOfType(c.getTypeFromTypeNodeWorker(node), node)
++	// getConditionalFlowTypeOfType walks node's ancestor chain up to the enclosing
++	// statement on every call - O(nesting depth). resolvedType (from the worker) is
++	// already memoized per node and the ancestor walk is a pure function of the node,
++	// so the flow type is too: memoize it. On doom's deeply nested conditional types
++	// this turns an O(depth) re-walk per node into O(1) after the first.
++	links := c.typeNodeLinks.Get(node)
++	if links.resolvedFlowType != nil {
++		return links.resolvedFlowType
++	}
++	result := c.getConditionalFlowTypeOfType(c.getTypeFromTypeNodeWorker(node), node)
++	links.resolvedFlowType = result
++	return result
+ }
+ 
+ func (c *Checker) getTypeFromTypeNodeWorker(node *ast.Node) *Type {
+@@ -24344,7 +24401,7 @@ func (c *Checker) getTypeFromConditionalTypeNode(node *ast.Node) *Type {
+ 		if alias != nil && len(alias.typeArguments) != 0 {
+ 			outerTypeParameters = allOuterTypeParameters
+ 		} else {
+-			outerTypeParameters = core.Filter(allOuterTypeParameters, func(tp *Type) bool { return c.isTypeParameterPossiblyReferenced(tp, node) })
++			outerTypeParameters = c.filterPossiblyReferencedTypeParameters(allOuterTypeParameters, node)
+ 		}
+ 		root := &ConditionalRoot{
+ 			node:                node.AsConditionalTypeNode(),
+diff --git a/internal/checker/types.go b/internal/checker/types.go
+index d240bb3f..eee7bfe1 100644
+--- a/internal/checker/types.go
++++ b/internal/checker/types.go
+@@ -380,6 +380,10 @@ type SymbolNodeLinks struct {
+ type TypeNodeLinks struct {
+ 	resolvedType        *Type   // Resolved type associated with node
+ 	outerTypeParameters []*Type // Outer type parameters of anonymous object type
++	// Result of applying getConditionalFlowTypeOfType to resolvedType. resolvedType is already
++	// memoized per node, so the substitution walk above it is a pure function of the node, but it
++	// was being redone on every getTypeFromTypeNode call - O(nesting depth) each time.
++	resolvedFlowType *Type
+ }
+ 
+ type ComputedNameNodeLinks struct {

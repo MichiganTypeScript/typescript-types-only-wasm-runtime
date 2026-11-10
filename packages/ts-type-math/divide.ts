@@ -111,6 +111,15 @@ type ToNegativeBinary<N> =
 type ToNegativeProperties<O extends object, P extends keyof O> =
   { [K in keyof O]: K extends P ? ToNegativeBinary<O[K]> : O[K] };
 
+/// Restoring division costs one step per dividend bit, and a leading zero bit
+/// only rotates a zero through the accumulator.  Drop the leading zeros, divide
+/// the significant bits, then pad the quotient back out.  Doom's operands are
+/// screen coordinates and scales, so this is usually 8-16 steps, not 32.
+type _StripLeading<S extends string, Pad extends string = ''> =
+  S extends `0${infer Rest}`
+    ? Rest extends '' ? { bits: S, pad: Pad } : _StripLeading<Rest, `${Pad}0`>
+    : { bits: S, pad: Pad };
+
 export type DivideUnsignedBinary32<
   dividend extends string,
   divisor extends string
@@ -119,11 +128,12 @@ export type DivideUnsignedBinary32<
   [dividend] extends [divisor] ? { quotient: Wasm.I32True, remainder: Wasm.I32False } : // if equal return 1
   [divisor] extends [Wasm.I32True] ? { quotient: dividend, remainder: Wasm.I32False } : // if divide by 1 return dividend
 
-  _DivideBinaryArbitrary<
-    dividend,
-    divisor,
-    Wasm.I32False
-  >;
+  _StripLeading<dividend> extends { bits: infer Bits extends string, pad: infer Pad extends string }
+    ? _DivideNarrow<Bits, `00${divisor}`, `00${Wasm.I32False}`> extends
+        [infer Q extends string, infer A extends string]
+      ? { quotient: `${Pad}${Q}`, remainder: _Low32<A> }
+      : never
+    : never;
 
 export type DivideSignedBinary32<
   dividend extends string,
@@ -156,6 +166,31 @@ export type DivideSignedBinary32<
       >;
 
 
+/// Shift one bit into the accumulator, dropping the top character.  Restoring
+/// division keeps the accumulator below the divisor, so with two spare
+/// characters the character being dropped is always '0'.
+type _ShiftIn<A extends string, Bit extends string> =
+  A extends `${B}${infer tailBits}` ? `${tailBits}${Bit}` : never;
+
+/// One restoring-division step per bit of the dividend, against an accumulator
+/// only as wide as the divisor needs.
+type _DivideNarrow<
+  Bits extends string,   // dividend bits still to shift in
+  M extends string,      // divisor, two characters wider than 32
+  A extends string,      // accumulator, same width as M
+  Q extends string = '', // quotient bits decided so far
+> =
+  Bits extends `${infer bit}${infer rest}`
+    ? _ShiftIn<A, bit> extends infer shifted extends string
+      ? LessThanUnsignedBinary<shifted, M> extends Wasm.I32True
+        ? _DivideNarrow<rest, M, shifted, `${Q}0`>
+        : _DivideNarrow<rest, M, SubtractBinaryFixed<shifted, M>, `${Q}1`>
+      : never
+    : [Q, A];
+
+/// The accumulator is 34 characters, so its value is the last 32.
+type _Low32<A extends string> = A extends `${B}${B}${infer rest}` ? rest : never;
+
 export type DivideUnsignedBinary64<
   dividend extends string,
   divisor extends string
@@ -164,11 +199,21 @@ export type DivideUnsignedBinary64<
   [dividend] extends [divisor] ? { quotient: Wasm.I64True, remainder: Wasm.I64False } : // if equal return 1
   [divisor] extends [Wasm.I64True] ? { quotient: dividend, remainder: Wasm.I64False } : // if divide by 1 return dividend
 
-  _DivideBinaryArbitrary<
-    dividend,
-    divisor,
-    Wasm.I64False
-  >;
+  // A divisor that fits in 32 bits - which is every divisor doom's FixedDiv
+  // produces, since it sign-extends an i32 - only needs a 34 character
+  // accumulator.  Subtracting the full 64 characters 64 times instead costs
+  // enough instantiations to trip TypeScript's limit, and a division that
+  // exceeds the limit comes back as `never` and poisons the memory word it is
+  // stored into.
+  divisor extends `${Wasm.I32False}${infer m extends string}`
+    ? _DivideNarrow<dividend, `00${m}`, `00${Wasm.I32False}`> extends [infer Q extends string, infer A extends string]
+      ? { quotient: Q, remainder: `${Wasm.I32False}${_Low32<A>}` }
+      : never
+    : _DivideBinaryArbitrary<
+        dividend,
+        divisor,
+        Wasm.I64False
+      >;
 
 export type DivideSignedBinary64<
   dividend extends string,

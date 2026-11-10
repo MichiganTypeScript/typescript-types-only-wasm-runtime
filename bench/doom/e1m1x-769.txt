@@ -1,0 +1,24 @@
+﻿THIS IS A TOOL-ASSISTED SPEEDRUN. 
+ 
+IWAD: Doom
+Map: E1M1
+Skill: Ultra-Violence
+Category: UV-Speed
+Exe: XDRE 2.22a (Custom build)
+Time: 7.69
+Author: almostmatt1
+
+Comments: Two frames saved over the previous best time.
+
+Diagonal walls are the gift that keeps on giving! I saved a further frame during the diagonal wallrun at the beginning of the map. I was discussing diagonal wallruns with Alps, how they affect distance travelled in different directions in different ways and how certain circumstances are necessary for longer periods of consecutive wallrunning frames, and even though this map has been totally beaten to death I couldn't resist taking another swing at it. 
+
+Previously the diagonal wallrun consisted of a few bumps into the wall, each one giving me a large increase to my north distance travelled. The problem was that I moved quite far north but the bump didn't also give me extra eastern movement, meaning that even though I'd cover a lot of ground, I would be too far from the wall on the next frame to wallrun against it. So there were a few intermittent periods of massive distance increases and then not touching the wall at all. Of course it happens too fast to see it anywhere but XDRE. 
+
+It's possible to instead contact the wall in a way that gives you less of a northern wallrun effect, but also does give you an increase to your eastern distance travelled. This means you cover a lot of north distance, but also get pushed closer to the wall again after every wallrunning frame, meaning you can stay in contact with the diagonal wall and wallrun against it the whole time. 
+
+The problem is that doing this lets you spend more frames wallrunning, but the actual wallrun effect for those frames is less potent, so it looked like the effect was basically going to cancel itself out. However diagonally wallrunning also gives you additional MOMENTUM as well as distance travelled, so even though the 'extra distance travelled' effect more or less cancelled itself out, spending more frames diagonally wallrunning resulted in more momentum accumulation, ultimately resulting in additional overall speed and saving a frame.
+
+While looking at the 7.74 tas by Alps and myself I realised that we were very, very close to being able to open the second door a frame sooner, I only needed to be a couple of units closer, so I pushed for that instead of just saving a single frame on the first door. The call of the .69 was too strong for me to ignore.
+
+I was fairly confident that Alps and I had done a pretty good job finding just about everything there was to be found in the 7.74, but it looks like I was quite wrong, as I always seem to be when I try to estimate TAS times :)
+

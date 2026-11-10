@@ -1,7 +1,14 @@
+import { test } from 'vitest'
 import { Equal, Expect } from "type-testing"
 import { ProgramState } from "./types"
 import type { evaluate, Satisfies } from 'ts-type-math'
 import { executeInstruction } from "./program"
+
+// The assertions in this file are `Expect<Equal<...>>`, checked by tsc rather
+// than at runtime. vitest still has to find a suite here or it fails the file
+// outright ("No test suite found"), which is how this one has been red - a
+// collection error, not a failing assertion. Same marker as bootstrap.test.ts.
+test("garbage collection")
 
 type blank = Satisfies<ProgramState, {
   count: 0;

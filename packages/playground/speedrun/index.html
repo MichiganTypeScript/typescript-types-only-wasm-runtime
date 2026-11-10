@@ -1,0 +1,3725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DOOM in TypeScript Types - Speedrun Editor</title>
+  <link rel="icon" href="favicon.ico?v=1" sizes="any" />
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #111214;
+    --panel: #191b1f;
+    --border: #2c3038;
+    --fg: #e6e8ec;
+    --muted: #8b92a0;
+    --accent: #d94a38;
+    --accent2: #ce9178;
+    --hl: #2a211d;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  header h1 span { color: var(--accent); }
+  header p { margin: 0; font-size: 12px; color: var(--muted); }
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(340px, 680px) minmax(320px, 1fr);
+    gap: 16px;
+    padding: 16px 20px;
+    align-items: start;
+  }
+  main[hidden] { display: none; }
+  #playbackTab { display: block; }
+  #playbackTab[hidden] { display: none; }
+  .tabs { display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .tabs .tab { background: none; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; color: var(--muted); padding: 8px 16px; font: inherit; cursor: pointer; margin-bottom: -1px; }
+  .tabs .tab.active { background: var(--panel); border-color: var(--border); color: var(--fg); }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #screenWrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 320 / 200;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    display: block;
+  }
+  #hud {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.62);
+    padding: 6px 9px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.45;
+    pointer-events: none;
+    white-space: pre;
+  }
+  @keyframes recPulse {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.75), 0 0 8px 2px rgba(255, 59, 48, 0.55);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.12);
+      box-shadow: 0 0 0 6px rgba(255, 59, 48, 0), 0 0 12px 3px rgba(255, 59, 48, 0.85);
+      opacity: 0.82;
+    }
+  }
+  @keyframes barStripe {
+    0% { background-position: 0 0; }
+    100% { background-position: 28px 0; }
+  }
+  @keyframes textPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  .rec-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ff3b30;
+    flex-shrink: 0;
+    animation: recPulse 1.4s ease-in-out infinite;
+  }
+  .rec-dot.done {
+    background: #5ec269;
+    animation: none;
+    box-shadow: 0 0 6px rgba(94, 194, 105, 0.5);
+  }
+  .rec-dot.stopped {
+    background: #e09b3d;
+    animation: none;
+    box-shadow: none;
+  }
+  .live-banner {
+    background: rgba(217, 74, 56, 0.09);
+    border: 1px solid rgba(217, 74, 56, 0.42);
+    border-radius: 5px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .live-banner.done {
+    background: rgba(94, 194, 105, 0.08);
+    border-color: rgba(94, 194, 105, 0.38);
+  }
+  .live-banner.stopped {
+    background: rgba(224, 155, 61, 0.08);
+    border-color: rgba(224, 155, 61, 0.38);
+  }
+  .live-banner-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 1.35;
+    min-width: 0;
+  }
+  .live-banner-top strong {
+    color: #fff;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .live-badge {
+    margin-left: auto;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 11px;
+    color: var(--accent2);
+    white-space: nowrap;
+  }
+  .live-sub {
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+  .live-bar, .overlay-bar {
+    width: 100%;
+    height: 6px;
+    background: #0d0e10;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .live-bar-fill, .overlay-bar-fill {
+    height: 100%;
+    background-color: var(--accent);
+    background-image: linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.22) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(255, 255, 255, 0.22) 50%,
+      rgba(255, 255, 255, 0.22) 75%,
+      transparent 75%,
+      transparent
+    );
+    background-size: 28px 28px;
+    animation: barStripe 0.9s linear infinite;
+    transition: width 0.25s ease;
+  }
+  .live-bar-fill.done, .overlay-bar-fill.done {
+    background-color: #5ec269;
+    background-image: none;
+    animation: none;
+  }
+  .screen-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: radial-gradient(circle at center, #161822 0%, #08090c 100%);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+    overflow-y: auto;
+  }
+  .screen-overlay[hidden] { display: none; }
+  .overlay-rec-pill {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 8px;
+    background: rgba(255, 59, 48, 0.14);
+    border: 1px solid rgba(255, 59, 48, 0.48);
+    color: #ffb3ad;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .overlay-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.3;
+  }
+  .overlay-sub {
+    font-size: 12px;
+    color: var(--accent2);
+    line-height: 1.35;
+  }
+  .overlay-guide {
+    margin-top: 2px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 11.5px;
+    line-height: 1.42;
+    color: var(--muted);
+  }
+  .overlay-guide-title {
+    color: var(--fg);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .overlay-guide ul {
+    margin: 0;
+    padding-left: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .overlay-guide b { color: var(--fg); }
+  .inline-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--accent2);
+    text-decoration: underline;
+    font: inherit;
+    cursor: pointer;
+  }
+  .inline-link:hover {
+    color: #fff;
+    border: none;
+  }
+  #timeline {
+    position: relative;
+    height: 168px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+    background: #0d0e10;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  #timeline li { display: flex; gap: 12px; padding: 0 8px; color: var(--muted); white-space: pre; }
+  #timeline li.done { color: var(--fg); cursor: pointer; }
+  #timeline li.done::after { content: "✓ ready"; margin-left: auto; color: #5ec269; opacity: 0.75; font-size: 11px; }
+  #timeline li.next { color: var(--accent2); }
+  #timeline li.next::after { content: attr(data-status); margin-left: auto; color: #ff6b60; font-weight: 600; animation: textPulse 1.5s ease-in-out infinite; }
+  #timeline li.cur { background: var(--hl); }
+  #timeline .n { width: 4ch; text-align: right; opacity: 0.6; }
+  #timeline .t { width: 7ch; opacity: 0.6; }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  button, select {
+    background: #23262d;
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  button:hover, select:hover { border-color: #4a5160; }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  button.primary:hover { filter: brightness(1.1); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  input[type="range"] { flex: 1; accent-color: var(--accent); }
+  .meta { font-size: 12px; color: var(--muted); }
+  .editorWrap {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    height: calc(100vh - 110px);
+    min-height: 460px;
+  }
+  #editor {
+    min-height: 0;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  textarea {
+    width: 100%;
+    height: 100%;
+    resize: none;
+    background: #0d0e10;
+    color: var(--accent2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px;
+    font: inherit;
+    font-size: 12.5px;
+    line-height: 1.5;
+    tab-size: 2;
+  }
+  textarea:focus { outline: 1px solid var(--accent); }
+  .help {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .help code {
+    color: var(--fg);
+    background: #0d0e10;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .toast {
+    font-size: 12px;
+    color: #7ee787;
+    margin-left: auto;
+  }
+  .tsc-slideshow {
+    background: #0d0e10;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .tsc-slide-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .tsc-slide-title {
+    font-size: 11.5px;
+    letter-spacing: 0.03em;
+    color: #fff;
+  }
+  .tsc-slide-badge {
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: #17191e;
+    border: 1px solid var(--border);
+    color: var(--accent2);
+    font-weight: 600;
+  }
+  .tsc-slide-btn {
+    padding: 2px 7px;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+  .tsc-slide-btn.active {
+    background: #1f242d;
+    border-color: #58a6ff;
+    color: #fff;
+  }
+  .tsc-slide-sub {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.35;
+  }
+  .tsc-vars-row, .tsc-slide-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    font-size: 11px;
+  }
+  .tsc-var-pill {
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: #14161a;
+    border: 1px solid #252830;
+    color: #c9d1d9;
+    font-size: 10.5px;
+  }
+  .tsc-var-pill b {
+    color: #79c0ff;
+    font-weight: 600;
+  }
+  .tsc-slide-tab {
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: #16181d;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .tsc-slide-tab:hover {
+    color: var(--fg);
+    border-color: #4a5160;
+  }
+  .tsc-slide-tab.active {
+    background: rgba(217, 74, 56, 0.2);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  .tsc-code-wrap {
+    background: #090a0c;
+    border: 1px solid #22252c;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .tsc-code-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 8px;
+    background: #121418;
+    border-bottom: 1px solid #22252c;
+    font-size: 10.5px;
+    color: var(--accent2);
+  }
+  .tsc-slide-code {
+    margin: 0;
+    padding: 7px 8px;
+    font-size: 11px;
+    line-height: 1.42;
+    color: #d0d7de;
+    overflow: auto;
+    height: 148px;
+    min-height: 148px;
+    max-height: 148px;
+    white-space: pre;
+    tab-size: 2;
+  }
+  .tsc-slide-code .kw { color: #ff7b72; }
+  .tsc-slide-code .ty { color: #79c0ff; }
+  .tsc-slide-code .fn { color: #d2a8ff; font-weight: 600; }
+  .tsc-slide-code .cm { color: #7ee787; font-style: italic; }
+  .tsc-slide-code .st { color: #a5d6ff; }
+  .editor-playback-badge {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(86, 209, 105, 0.12);
+    border: 1px solid rgba(86, 209, 105, 0.35);
+    color: #7ee787;
+  }
+  .monaco-line-done {
+    border-left: 3px solid rgba(86, 209, 105, 0.55);
+  }
+  .monaco-line-checking {
+    background: rgba(255, 182, 72, 0.14) !important;
+    border-left: 3px solid #ffb648;
+  }
+  .monaco-line-cur {
+    background: rgba(217, 74, 56, 0.22) !important;
+    border-left: 3px solid var(--accent);
+  }
+  .monaco-badge-done {
+    color: #56d169 !important;
+    opacity: 0.65;
+    font-size: 11px;
+    margin-left: 12px;
+  }
+  .monaco-badge-checking {
+    color: #ffb648 !important;
+    font-weight: 600;
+    font-size: 11px;
+    margin-left: 12px;
+  }
+  .monaco-badge-cur {
+    color: #ff9b50 !important;
+    font-weight: 600;
+    font-size: 11px;
+    margin-left: 12px;
+  }
+  .monaco-badge-pending {
+    color: #8b92a0 !important;
+    opacity: 0.45;
+    font-size: 11px;
+    margin-left: 12px;
+  }
+  .editor-step-tooltip {
+    position: fixed;
+    z-index: 50;
+    background: rgba(15, 17, 21, 0.96);
+    border: 1px solid #3c424f;
+    border-radius: 6px;
+    padding: 8px 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-width: 280px;
+    font-size: 11.5px;
+  }
+  .editor-step-tooltip[hidden] { display: none; }
+  .est-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .est-pill {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+    letter-spacing: 0.03em;
+  }
+  .est-pill.done {
+    background: rgba(86, 209, 105, 0.18);
+    border: 1px solid rgba(86, 209, 105, 0.5);
+    color: #7ee787;
+  }
+  .est-pill.checking {
+    background: rgba(255, 182, 72, 0.2);
+    border: 1px solid rgba(255, 182, 72, 0.55);
+    color: #ffb648;
+  }
+  .est-pill.pending {
+    background: rgba(139, 146, 160, 0.15);
+    border: 1px solid rgba(139, 146, 160, 0.35);
+    color: var(--muted);
+  }
+  .est-meta {
+    font-size: 11px;
+    color: var(--fg);
+    line-height: 1.35;
+  }
+  .est-sub {
+    font-size: 10.5px;
+    color: var(--muted);
+    line-height: 1.3;
+  }
+  #editorTooltipCanvas {
+    width: 192px;
+    height: 120px;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    image-rendering: pixelated;
+    align-self: center;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>DOOM</span> IN TYPESCRIPT TYPES — SPEEDRUN EDITOR</h1>
+  <p>Doom compiled to 107 MB of TypeScript types — every frame is rendered live by running the TypeScript type checker in your browser.</p>
+</header>
+<nav class="tabs" role="tablist">
+  <button class="tab active" role="tab" data-tab="editorTab">Live Type-Checker &amp; Editor</button>
+  <button class="tab" role="tab" data-tab="playbackTab">Pre-recorded Videos &amp; Saved Runs</button>
+</nav>
+
+<main id="editorTab">
+  <section class="card">
+    <div id="liveBanner" class="live-banner" role="status" aria-live="polite">
+      <div class="live-banner-top">
+        <span id="recDot" class="rec-dot"></span>
+        <strong id="liveTitle">RECORDING FRAME 1 / 277 IN TYPESCRIPT...</strong>
+        <span id="liveBadge" class="live-badge">Chunk 1/~71 &middot; 0s</span>
+      </div>
+      <div id="liveSub" class="live-sub">
+        <span id="liveSubText">Live type-checking Doom (~20&ndash;30s per frame, ~35&ndash;70 chunks). Keep this tab open; frames auto-save as they finish.</span>
+        <button type="button" class="inline-link" id="bannerWatchBtn">Watch 1000&times; pre-recorded run &rarr;</button>
+      </div>
+      <div class="live-bar" title="Overall run progress across all frames"><div id="liveBarFill" class="live-bar-fill" style="width:0%"></div></div>
+    </div>
+    <div id="screenWrap">
+      <canvas id="screen" width="960" height="600"></canvas>
+      <div id="screenOverlay" class="screen-overlay">
+        <div class="overlay-rec-pill">
+          <span class="rec-dot" id="overlayDot"></span>
+          <span id="overlayPillText">LIVE TYPE-CHECK RECORDING IN PROGRESS — THIS TAKES A WHILE</span>
+        </div>
+        <div id="overlayTitle" class="overlay-title">TypeScript is compiling Frame 1 of 277...</div>
+        <div id="overlaySub" class="overlay-sub">Checking chunk 1 of ~71 in tsgo-doom (0s elapsed)</div>
+        <div class="overlay-bar"><div id="overlayBarFill" class="overlay-bar-fill" style="width:6%"></div></div>
+        <div class="overlay-guide">
+          <div class="overlay-guide-title">First time here? How this works &amp; what to expect:</div>
+          <ul>
+            <li><b>Why it takes a while:</b> There is no JS game engine here — Doom runs 100% inside the TypeScript type checker (<code>tsgo</code> / <code>tsrs</code>). Each frame takes ~35–70 type-check passes ("chunks", ~20–30s per frame).</li>
+            <li><b>Where frames appear:</b> Stay on this tab! Frame 1 will draw right on this screen as soon as its chunks finish. You can Play, Step, or Scrub finished frames while Frame 2+ keep recording in the background.</li>
+            <li><b>Edit inputs or skip the wait:</b> Edit <code>type Inputs = Run&lt;[ ... ]&gt;</code> on the right and press <b>Run</b>, or <button type="button" class="inline-link" id="overlayWatchBtn">watch a pre-recorded full run (1000× speed) &rarr;</button></li>
+          </ul>
+        </div>
+      </div>
+      <div id="hud">loading…</div>
+    </div>
+
+    <div class="row">
+      <button id="playBtn">Pause</button>
+      <button id="stepBackBtn" title="Step -1 frame">&larr;</button>
+      <button id="stepFwdBtn" title="Step +1 frame">&rarr;</button>
+      <input id="scrub" type="range" min="0" max="0" value="0" />
+      <span id="frameLabel" class="meta">0 / 0</span>
+    </div>
+
+    <div class="row">
+      <label class="meta">Speed
+        <select id="fpsSel">
+          <option value="0.25">0.25x</option>
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x (real time)</option>
+          <option value="2">2x</option>
+          <option value="4">4x</option>
+        </select>
+      </label>
+      <label class="meta"><input id="loopChk" type="checkbox" /> Loop</label>
+      <label class="meta" title="Procedural Doom synth soundtrack and tic-synced SFX"><input id="soundChk" type="checkbox" checked /> Sound</label>
+      <span style="flex:1"></span>
+      <button id="videoBtn">Download Video</button>
+    </div>
+
+    <div class="row">
+      <span class="meta">Timeline: one line per tic. Click a checked tic to show it.</span>
+      <span style="flex:1"></span>
+      <button id="followBtn" hidden>Follow current frame</button>
+    </div>
+      <ol id="timeline"></ol>
+      <div id="tscSlideshow" class="tsc-slideshow">
+        <div class="tsc-slide-head">
+          <span class="rec-dot" id="tscSlideDot"></span>
+          <strong class="tsc-slide-title">LIVE TSC TYPE-CHECK SLIDESHOW</strong>
+          <span id="tscSlideFnBadge" class="tsc-slide-badge">Loading CFG..</span>
+          <span style="flex:1"></span>
+          <button type="button" id="tscSlidePrevBtn" class="tsc-slide-btn" title="Previous CFG block slide">&larr;</button>
+          <span id="tscSlideCount" class="meta">1 / 8</span>
+          <button type="button" id="tscSlideNextBtn" class="tsc-slide-btn" title="Next CFG block slide">&rarr;</button>
+          <button type="button" id="tscSlideAutoBtn" class="tsc-slide-btn active" title="Auto-step through the active CFG block pipeline while tsc evaluates chunks">Auto-Step</button>
+        </div>
+        <div id="tscSlideSub" class="tsc-slide-sub">Each frame (~35–70 chunks) steps through Doom's WebAssembly CFG compiled to TypeScript types. Hover any block tab or editor line to inspect.</div>
+        <div id="tscVarsRow" class="tsc-vars-row"></div>
+        <div id="tscSlideTabs" class="tsc-slide-tabs"></div>
+      <div class="tsc-code-wrap">
+        <div class="tsc-code-meta">
+          <span id="tscCodeHeader">doom-keys.cfg.ts</span>
+          <span id="tscCodeLines" class="meta"></span>
+        </div>
+        <pre id="tscSlideCode" class="tsc-slide-code">Loading TypeScript CFG type definitions from doom-keys.cfg.ts...</pre>
+      </div>
+    </div>
+    </section>
+
+  <section class="card editorWrap">
+    <div class="row">
+      <label class="meta" title="Loads the preset's script into the editor as a starting point">Start from
+      <select id="presetSel">
+        <optgroup label="Boss Fight &amp; Stage Starters (Record Your Run)">
+          <option value="e1m8_boss">E1M8 Boss Fight — Bruiser Brothers Arena (Rocket Launcher, 185 tics)</option>
+          <option value="stage_e1m1">Start Stage 1 — E1M1: Hangar (UV + Shotgun, 57 tics)</option>
+          <option value="stage_e1m2">Start Stage 2 — E1M2: Nuclear Plant (UV + Shotgun, 57 tics)</option>
+          <option value="stage_e1m3">Start Stage 3 — E1M3: Toxin Refinery (UV + Shotgun, 57 tics)</option>
+          <option value="stage_e1m4">Start Stage 4 — E1M4: Command Control (UV + Chaingun, 54 tics)</option>
+          <option value="stage_e1m5">Start Stage 5 — E1M5: Phobos Lab (UV + Chaingun, 57 tics)</option>
+          <option value="stage_e1m6">Start Stage 6 — E1M6: Central Processing (UV + Chaingun, 57 tics)</option>
+          <option value="stage_e1m7">Start Stage 7 — E1M7: Computer Station (UV + Chaingun, 59 tics)</option>
+          <option value="stage_e1m8">Start Stage 8 — E1M8: Phobos Anomaly (UV + Rocket Launcher, 104 tics)</option>
+          <option value="stage_e1m9">Start Secret Stage — E1M9: Military Base (UV + Rocket Launcher, 57 tics)</option>
+        </optgroup>
+        <optgroup label="Stage UV-Speed TAS Runs (Frame-1 Stage Splits)">
+          <option value="tas" selected>E1M1: Hangar — 0:07.69 UV-Speed TAS (277 tics)</option>
+          <option value="e1m2_tas">E1M2: Nuclear Plant — 0:18.57 UV-Speed TAS (650 tics)</option>
+          <option value="e1m3_tas">E1M3: Toxin Refinery — 0:30.71 UV-Speed TAS (1075 tics)</option>
+          <option value="e1m4_tas">E1M4: Command Control — 0:10.60 UV-Speed TAS (371 tics)</option>
+          <option value="e1m5_tas">E1M5: Phobos Lab — 0:34.69 UV-Speed TAS (1214 tics)</option>
+          <option value="e1m6_tas">E1M6: Central Processing — 0:37.00 UV-Speed TAS (1295 tics)</option>
+          <option value="e1m7_tas">E1M7: Computer Station — 0:52.66 UV-Speed TAS (1843 tics)</option>
+            <option value="e1m8_tas">E1M8: Phobos Anomaly (Boss Stage) - 0:16.74 UV-Speed TAS (591 tics)</option>
+        </optgroup>
+        <optgroup label="Full Episode &amp; Classic E1M1 Runs">
+            <option value="ep1_tas">Episode 1 (All 8 Stages E1M1-E1M8) 3:23 UV-Speed TAS (7427 tics)</option>
+          <option value="uvmax_tas">E1M1 0:18.97 UV-Max TAS — 100% Kills &amp; Secrets (672 tics)</option>
+          <option value="uvspeed_rta">E1M1 0:08.74 UV-Speed / Pacifist RTA World Record (314 tics)</option>
+          <option value="uvmax_rta">E1M1 0:24.83 UV-Max RTA World Record (877 tics)</option>
+          <option value="clear">E1M1 Clear (1000 tics)</option>
+          <option value="kill">E1M1 Kill Run (1999 tics)</option>
+        </optgroup>
+        <option value="custom">Your edits</option>
+      </select>
+      </label>
+      <label class="meta" title="Which TypeScript type checker, compiled to WebAssembly, runs your script">Checker
+        <select id="checkerSel">
+          <option value="tsgo-doom" selected>tsgo-doom (TS7.1 with checker speedups, TinyGo build)</option>
+          <option value="ts7">tsgo (TS7.1, Go build)</option>
+          <option value="tsrs">tsrs</option>
+        </select>
+      </label>
+      <button id="runBtn" class="primary" title="Check the script. Frames from the last run stay up to the first tic the edit changes; checking continues from there.">Run</button>
+      <button id="shareBtn">Share Link</button>
+      <span id="toast" class="toast"></span>
+    </div>
+    <div class="row">
+      <button id="openFileBtn" title="Open a .ts run from your disk">Open file…</button>
+      <button id="saveFileBtn" title="Save this run as a .ts file on your disk">Save file…</button>
+      <input id="fileInput" type="file" accept=".ts,text/plain" hidden />
+      <span id="editorPlaybackBadge" class="editor-playback-badge" title="Hover any tic line in the editor to see its rendered/compiling/pending status &amp; frame preview; click a rendered tic line to seek">In-Code Playback: Hover/Click Line</span>
+      <label class="meta" title="Highlight and follow the active tic line in the TypeScript editor during playback and live type-checking"><input id="editorFollowChk" type="checkbox" checked /> Follow tic in code</label>
+      <span style="flex:1"></span>
+      <button id="exportBtn" title="Download the script, the frames checked so far and the checker's progress, as one file">Export run…</button>
+      <button id="importBtn" title="Open an exported run: shows its frames and continues the check where it stopped">Import run…</button>
+      <input id="importInput" type="file" accept=".doomrun" hidden />
+    </div>
+
+    <div id="editor" aria-label="Speedrun input script"></div>
+
+    <div class="help">
+      <code>none&lt;tics&gt;</code> waits, <code>hold&lt;Key | Key[], tics&gt;</code> holds keys together. Type <code>"</code> inside <code>hold&lt;</code> for the key list; hover a key for what it does.
+    </div>
+  </section>
+    <div id="editorStepTooltip" class="editor-step-tooltip" hidden>
+      <div class="est-head">
+        <span id="estStatusPill" class="est-pill">PENDING</span>
+        <span id="estTicLabel" class="meta">Tic 1</span>
+      </div>
+      <div id="estMeta" class="est-meta"></div>
+      <canvas id="editorTooltipCanvas" width="320" height="200"></canvas>
+      <div id="estSub" class="est-sub"></div>
+    </div>
+  </main>
+
+<main id="playbackTab" hidden>
+  <section class="card" style="max-width:1000px">
+    <div class="row">
+      <label class="meta">Recordings
+        <select id="recSel">
+          <option value="ts7.1-tas.mp4">TAS preset, checked by TS7.1, played 1000x faster</option>
+          <option value="tsrs-tas.mp4">TAS preset, checked by tsrs, played 1000x faster</option>
+          <option value="ts7.1-e1m1.mp4">Clear preset, checked by TS7.1, played 1000x faster</option>
+        </select>
+      </label>
+    </div>
+    <p class="meta"><button type="button" class="inline-link" id="backToEditorBtn">&larr; Back to Live Type-Checker &amp; Editor</button></p>
+    <p class="meta">A full run takes hours to check, so these are screen recordings of runs that were checked to the end earlier. The overlay shows each frame's check time.</p>
+    <video id="recVideo" controls playsinline preload="metadata" src="recordings/ts7.1-tas.mp4?v=4" style="width:100%;background:#000;border-radius:4px"></video>
+  </section>
+  <section class="card" style="max-width:1000px">
+    <div class="row">
+      <label class="meta">Your runs <select id="pastSel"></select></label>
+      <button id="pastDelBtn">Delete</button>
+      <button id="pastDelAllBtn">Delete all</button>
+    </div>
+    <p class="meta">Every run you check in the Editor is saved in this browser by itself. Delete the ones you do not want to keep.</p>
+    <canvas id="pastScreen" width="320" height="200" style="width:100%;image-rendering:pixelated;background:#000;border-radius:4px"></canvas>
+    <div class="row">
+      <button id="pastPlayBtn">Play</button>
+      <input id="pastScrub" type="range" min="0" max="0" value="0" style="flex:1" />
+      <span id="pastLabel" class="meta">0 / 0</span>
+    </div>
+  </section>
+</main>
+
+<script src="presets.js"></script>
+<script src="monaco/vs/loader.js"></script>
+<script type="module">
+import { encodeCheckpoint, decodeCheckpoint, decodeInspection } from "./run.browser.js?v=13";
+const BITS = ["Escape","Enter","ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space","ControlLeft","KeyY","KeyN","Digit1","Digit2","Digit3","Digit4","Digit5","Digit6","Digit7","ShiftLeft","AltLeft","Tab"];
+const ALIAS = {
+  up:"ArrowUp", forward:"ArrowUp", fwd:"ArrowUp", w:"ArrowUp",
+  down:"ArrowDown", back:"ArrowDown", s:"ArrowDown",
+  left:"ArrowLeft", turnleft:"ArrowLeft", a:"ArrowLeft",
+  right:"ArrowRight", turnright:"ArrowRight", d:"ArrowRight",
+  run:"ShiftLeft", shift:"ShiftLeft",
+  use:"Space", space:"Space", open:"Space",
+  fire:"ControlLeft", shoot:"ControlLeft", ctrl:"ControlLeft",
+  strafe:"AltLeft", alt:"AltLeft",
+  enter:"Enter", start:"Enter",
+  esc:"Escape", escape:"Escape",
+  map:"Tab", tab:"Tab",
+  y:"KeyY", n:"KeyN",
+  "1":"Digit1","2":"Digit2","3":"Digit3","4":"Digit4","5":"Digit5","6":"Digit6","7":"Digit7",
+};
+const SHORT = { ArrowUp:"up", ArrowDown:"down", ArrowLeft:"left", ArrowRight:"right", ShiftLeft:"run", Space:"use", ControlLeft:"fire", Enter:"enter", Escape:"esc", AltLeft:"strafe", Tab:"map", KeyY:"y", KeyN:"n" };
+for (const b of BITS) ALIAS[b.toLowerCase()] = b;
+
+// The script is a TypeScript type. These declarations are what the editor
+// completes against; evaluation asks the same checker for the resolved tuple
+// (ts-eval-worker.js), so a script runs exactly when it type-checks.
+const KEY_DOCS = {
+  ArrowUp: "move forward", ArrowDown: "move back / menu down", ArrowLeft: "turn left", ArrowRight: "turn right",
+  ShiftLeft: "run", AltLeft: "strafe (with left/right)", ControlLeft: "fire", Space: "use / open doors",
+  Enter: "menu select", Escape: "menu / back", Tab: "automap", KeyY: "yes in prompts", KeyN: "no in prompts",
+  Digit1: "fist / chainsaw", Digit2: "pistol", Digit3: "shotgun", Digit4: "chaingun", Digit5: "rocket launcher",
+  Digit6: "plasma rifle", Digit7: "BFG",
+};
+const PRELUDE = `/** A key Doom reads, named by KeyboardEvent.code. */
+type Key =
+${BITS.map((b) => `  /** ${KEY_DOCS[b]} */\n  | "${b}"`).join("\n")};
+
+/**
+ * One tic of a demo. Leave out what isn't happening: {} is a tic with no input.
+ * Speeds go up to 127; the keyboard gives 50 running and 25 walking.
+ * Turns are mouse turns.
+ */
+type Move = {
+  readonly forward?: number;
+  readonly back?: number;
+  readonly strafeLeft?: number;
+  readonly strafeRight?: number;
+  readonly turnLeft?: number;
+  readonly turnRight?: number;
+  readonly fire?: true;
+  readonly use?: true;
+  readonly weapon?: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+};
+
+type Stage = "E1M1" | "E1M2" | "E1M3" | "E1M4" | "E1M5" | "E1M6" | "E1M7" | "E1M8" | "E1M9";
+type Skill = 1 | 2 | 3 | 4 | 5;
+type LoadoutWeapon = "fist" | "chainsaw" | "pistol" | "shotgun" | "chaingun" | "rocket";
+
+/** One tic: the keys held during it, a stage/loadout warp, or a demo action. */
+type Step = readonly Key[] | {
+  readonly keys?: readonly Key[];
+  /** Warp directly to any stage (E1M1-E1M9), skipping the menu and screen wipe. */
+  readonly warp?: Stage;
+  /** Skill 1-5 (1 = Too Young To Die, 3 = Hurt Me Plenty, 4 = Ultra-Violence, 5 = Nightmare; default 4). */
+  readonly skill?: Skill;
+  /** Equip weapon with full ammo (instantly raised and ready to fire on the next tic). */
+  readonly weapon?: LoadoutWeapon;
+  /** Player health (1-200; default 100). */
+  readonly health?: number;
+  /** Player armor (0-200; >100 gives MegaArmor). */
+  readonly armor?: number;
+  readonly armorType?: 0 | 1 | 2;
+  readonly backpack?: boolean;
+  /** God mode / invulnerability (IDDQD). */
+  readonly god?: boolean;
+  /** On E1M8: true spawns directly inside the Star Arena facing the two Barons of Hell ("Bruiser Brothers"). */
+  readonly bossArena?: boolean;
+  readonly owned?: readonly [number, number, number, number, number, number, number, number, number];
+  readonly ammo?: readonly [number, number, number, number];
+  readonly rnd?: number;
+  readonly prnd?: number;
+  /** Restart E1M1 (or the warped stage) and replay these moves, one per tic. The keyboard is ignored while it plays. */
+  readonly playDemo?: readonly Move[];
+  /** Add moves to the end of the demo that is playing. */
+  readonly extendDemo?: readonly Move[];
+  /** Replace one move of the demo: [tic number counting from 0, move]. */
+  readonly setDemoTic?: readonly [number, Move];
+};
+
+type Repeat<V, N extends number, Acc extends V[] = []> = Acc["length"] extends N ? Acc : Repeat<V, N, [...Acc, V]>;
+
+/** \`tics\` tics with nothing pressed. */
+type none<tics extends number = 1> = Repeat<[], tics>;
+
+/** Hold one key, or several together, for \`tics\` tics. */
+type hold<keys extends Key | readonly Key[], tics extends number = 1> = Repeat<keys extends Key ? [keys] : keys, tics>;
+
+/** Wrap your tuple in this to get errors on bad steps: \`type Inputs = Run<[ ... ]>\`. */
+type Run<T extends readonly Step[]> = T;
+`;
+
+// Every script opens with its keys as named constants, so a reader needs nothing else.
+const KEY_CONSTS = [
+  ["ESCAPE", "Escape", "menu / back"],
+  ["ENTER", "Enter", "menu select"],
+  ["MENU_UP", "ArrowUp", "menu cursor up"],
+  ["MENU_DOWN", "ArrowDown", "menu cursor down"],
+  ["FORWARD", "ArrowUp", "move forward"],
+  ["BACK", "ArrowDown", "move backward"],
+  ["TURN_LEFT", "ArrowLeft", "turn left"],
+  ["TURN_RIGHT", "ArrowRight", "turn right"],
+  ["RUN", "ShiftLeft", "run (hold with a move key)"],
+  ["STRAFE", "AltLeft", "strafe (turn keys move sideways)"],
+  ["USE", "Space", "use / open doors / press switches"],
+  ["FIRE", "ControlLeft", "fire"],
+  ["AUTOMAP", "Tab", "automap"],
+  ["YES", "KeyY", "yes in prompts"],
+  ["NO", "KeyN", "no in prompts"],
+  ["FIST", "Digit1", "fist / chainsaw"],
+  ["PISTOL", "Digit2", "pistol"],
+  ["SHOTGUN", "Digit3", "shotgun"],
+  ["CHAINGUN", "Digit4", "chaingun"],
+  ["ROCKET_LAUNCHER", "Digit5", "rocket launcher"],
+  ["PLASMA_RIFLE", "Digit6", "plasma rifle"],
+  ["BFG", "Digit7", "BFG"],
+];
+const KEY_HEADER = [
+  "// Keys. Several in one tic: hold<[FORWARD, RUN], 35>",
+  ...KEY_CONSTS.map(([name, code, doc]) => `${`type ${name} = "${code}";`.padEnd(36)} // ${doc}`),
+  "",
+  "// 35 tics = 1 second. none<N>: N tics with nothing pressed. hold<KEY, N>: hold KEY for N tics.",
+].join("\n");
+// In a menu the arrows move the cursor; elsewhere they move the player.
+const constName = (code, inMenu) =>
+  KEY_CONSTS.find(([n, c]) => c === code && (inMenu ? !["FORWARD", "BACK"].includes(n) : !n.startsWith("MENU_")))[0];
+
+function stepLines(steps) {
+  // the presets start on the skill menu: arrows are menu keys until Enter picks a skill
+  let inMenuUntil = steps.findIndex((s) => s.keys.includes("Enter"));
+  while (inMenuUntil >= 0 && steps[inMenuUntil]?.keys.includes("Enter")) inMenuUntil++;
+  const keyList = (k, inMenu) => (k.length === 1 ? constName(k[0], inMenu) : `[${k.map((x) => constName(x, inMenu)).join(", ")}]`);
+  const lines = [];
+  for (let i = 0; i < steps.length; ) {
+    const st = steps[i];
+    let j = i;
+    while (j < steps.length && steps[j].keys.join() === st.keys.join() && j - i < 500) j++;
+    const n = j - i;
+    lines.push(st.keys.length ? `  ...hold<${keyList(st.keys, i < inMenuUntil)}${n > 1 ? `, ${n}` : ""}>,` : `  ...none<${n}>,`);
+    i = j;
+  }
+  return lines;
+}
+
+const SCRIPT_TOP = "// One element per tic, starting on the skill menu. Edit any line, then Run.";
+
+function scriptFromSteps(steps, note) {
+  return `// Based on: ${note}\n${SCRIPT_TOP}\n\n${KEY_HEADER}\n\ntype Inputs = Run<[\n${stepLines(steps).join("\n")}\n]>;\n`;
+}
+
+function legacySteps(text, ticsPerLine = 1) {
+  const out = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const tokens = raw.trim().split(/\s+/).filter(Boolean);
+    if (!tokens.length) continue;
+    const n = parseInt(tokens.shift(), 10);
+    const keys = tokens.filter((t) => t !== "-").map((t) => ALIAS[t.toLowerCase()]);
+    for (let i = 0; i < n * ticsPerLine; i++) out.push({ keys });
+  }
+  return out;
+}
+// Where the demo goes in doom-keys.wasm's memory and the globals that start
+// playback (bench/doom/tas-keys.mjs). Scripts never see these: playDemo,
+// extendDemo and setDemoTic become the memory writes below.
+const DEMO_AT = 8192;            // under the stack, which never gets this low
+const WIPE_GAMESTATE = 87000; // 0 = GS_LEVEL, 2 = GS_FINALE (skips the 30-frame melt screen wipe)
+const FINALECOUNT = 4404916;  // F_Ticker's finale counter (1350 = full story text, 1575 = victory screen)
+const MAKETIC = 4403988;         // local ticcmd write cursor; setting == gametic removes 5-tic menu-boot lag
+const OLDENTERTICS = 4404760;    // NetUpdate's last-seen clock tic
+const GAMEMAP = 4406284;         // current stage number (1..9)
+const PLAYERINGAME0 = 4406304;   // playeringame[0]
+const PLAYER0_STATE = 4406324;   // players[0].playerstate
+const PST_REBORN = 2;            // a death's state: G_Ticker reloads the map, as G_InitNew does
+const PLAYER0_HEALTH = 4406352;
+const PLAYER0_ARMOR = 4406356;
+const PLAYER0_ARMORTYPE = 4406360;
+const PLAYER0_BACKPACK = 4406412;
+const PLAYER0_READY = 4406432;
+const PLAYER0_PENDING = 4406436;
+const PLAYER0_OWNED = 4406440;   // weaponowned[0..8]
+const PLAYER0_AMMO = 4406476;    // ammo[0..3]: bullets, shells, cells, rockets
+const PLAYER0_MAXAMMO = 4406492; // maxammo[0..3]
+const PLAYER0_ATTACKDOWN = 4406508;
+const PLAYER0_USEDOWN = 4406512;
+const PLAYER0_CHEATS = 4406516;  // 2 = CF_GODMODE
+const PLAYER0_PSPRITE_STATE = 4406564;
+const PLAYER0_PSPRITE_TICS = 4406568;
+const PLAYER0_PSPRITE_SX = 4406572;
+const PLAYER0_PSPRITE_SY = 4406576;
+const GAMEEPISODE = 4407440;
+const GAMESKILL = 4407444;       // 0..4
+const GAMEACTION = 4407456;      // 1 = ga_loadlevel, 2 = ga_newgame
+const DEMOPLAYBACK = 4407472;    // G_Ticker reads the demo instead of the keyboard when this is 1
+const USERGAME = 4408260;
+const DEMO_P = 4408264;          // G_ReadDemoTiccmd's cursor into the demo
+const MENUACTIVE = 4411028;      // 0 closes the skill menu so keyboard events go to gameplay
+const RNDINDEX = 4411108;        // M_Random's index
+const PRNDINDEX = 4411112;       // P_Random's index
+const DEMO_END = 0x80;
+const WEAPON_INFO = {
+  fist: { idx: 0, readyState: 88792 },
+  pistol: { idx: 1, readyState: 89016, ammoIdx: 0, defaultAmmo: 200 },
+  shotgun: { idx: 2, readyState: 89240, ammoIdx: 1, defaultAmmo: 50 },
+  chaingun: { idx: 3, readyState: 90108, ammoIdx: 0, defaultAmmo: 200 },
+  rocket: { idx: 4, readyState: 90332, ammoIdx: 3, defaultAmmo: 50 },
+  chainsaw: { idx: 7, readyState: 90612 },
+};
+
+// A ticcmd as stored in a demo: forward, side (+ right), angleturn's high byte (+ left), buttons.
+const s8 = (b) => (b << 24) >> 24;
+const ticWord = ([f, s, t, b]) => ((f & 255) | ((s & 255) << 8) | ((t & 255) << 16) | ((b & 255) << 24)) >>> 0;
+const wordTic = (w) => [s8(w & 255), s8((w >> 8) & 255), s8((w >> 16) & 255), w >>> 24];
+
+// A word as a Move type: { forward: 50; strafeRight: 50; turnRight: 3 }
+function moveType(w) {
+  const [f, s, t, b] = wordTic(w);
+  const out = [];
+  if (f) out.push(f > 0 ? `forward: ${f}` : `back: ${-f}`);
+  if (s) out.push(s > 0 ? `strafeRight: ${s}` : `strafeLeft: ${-s}`);
+  if (t) out.push(t > 0 ? `turnLeft: ${t}` : `turnRight: ${-t}`);
+  if (b & 1) out.push("fire: true");
+  if (b & 2) out.push("use: true");
+  if (b & 4) out.push(`weapon: ${((b >> 3) & 7) + 1}`);
+  return out.length ? `{ ${out.join("; ")} }` : "{}";
+}
+function moveLines(words) {
+  const lines = [];
+  for (let i = 0; i < words.length; ) {
+    let j = i;
+    while (j < words.length && words[j] === words[i] && j - i < 500) j++;
+    lines.push(j - i > 1 ? `  ...Repeat<${moveType(words[i])}, ${j - i}>,` : `  ${moveType(words[i])},`);
+    i = j;
+  }
+  return lines;
+}
+function noneLines(n, comment = "") {
+  const out = [];
+  for (let rem = n; rem > 0; rem -= 500) {
+    out.push(`  ...none<${Math.min(500, rem)}>,${out.length === 0 && comment ? ` // ${comment}` : ""}`);
+  }
+  return out.join("\n");
+}
+
+// tas-keys.mjs's KEY_SCRIPT (bench/doom/tas-keys.mjs) as TypeScript. Its raw
+// memory writes are read back as the demo actions they perform.
+// extendDemo's moves. The TAS presses Use with a late write over tic `at` of the
+// extension; it is folded in here so the script shows the press where it plays.
+function extendLines(words, at, useWord) {
+  if (at === undefined) return moveLines(words);
+  if (!(at >= 0 && at < words.length)) throw new Error(`Use tic ${at} is outside the extension`);
+  const before = moveLines(words.slice(0, at));
+  return [
+    ...before.map((l, i) => (i === before.length - 1 ? `${l} // the screen wipes to the finished screen` : l)),
+    `  ${moveType(useWord)}, // Use skips the count-up, so the final TIME shows at once`,
+    ...moveLines(words.slice(at + 1)),
+  ];
+}
+
+function tasScript(steps, note) {
+  const start = steps.find((s) => s.poke);
+  // the step that writes idle tics over the demo's end marker
+  const idle = steps.find((s) => s !== start && s.poke?.at(-1)[1] === DEMO_END);
+  const startAt = steps.indexOf(start);
+  const idleAt = steps.indexOf(idle);
+  const words = start.poke.filter(([a]) => a < 65536).map(([, w]) => w);
+  const tics = words.slice(0, words.indexOf(DEMO_END));
+  const idleWords = idle ? idle.poke.slice(0, -1).map(([, w]) => w) : [];
+  const isFinale = idleWords.length === 10;
+  const use = !isFinale ? steps.at(-1).poke?.[0] : undefined;
+  const after = steps.length - startAt - 1;
+  return `// Based on: ${note}
+${SCRIPT_TOP}
+
+${KEY_HEADER}
+
+// The TAS is a Doom demo: one recorded move per tic, replayed by Doom itself.
+// forward, back, strafeLeft, strafeRight: speed (50 is running, 25 walking).
+// turnLeft, turnRight: a mouse turn.
+type Demo = [
+${moveLines(tics).join("\n")}
+];
+
+type Inputs = Run<[
+${stepLines(steps.slice(0, startAt)).join("\n")}
+  { playDemo: Demo }, // restart E1M1 and replay Demo from its first tic
+${idle ? `${noneLines(idleAt - startAt - 1, "the demo plays; keys are ignored")}${isFinale ? `
+  // E1M8 ends in a dark teleporter ambush room (sector special 11: <=10% health exit) with no
+  // FINISHED tally screen; extend the demo so G_ExitLevel -> F_StartFinale shows the Episode 1 ending
+  {
+    extendDemo: [
+      ...Repeat<{}, 10>,
+    ];
+  },
+  ...none<3>,\n` : `
+  // The demo's last tic presses the exit switch. Doom then shows the E1M1 finished
+  // screen, counting kills, items, secrets and TIME up from 0. Keep the demo going
+  // ${idleWords.length} more tics so Doom has input while that happens.
+  {
+    extendDemo: [
+${extendLines(idleWords, use ? (use[0] - DEMO_AT) / 4 - tics.length : undefined, use?.[1]).map((l) => "      " + l).join("\n")}
+    ];
+  },
+${noneLines(steps.length - idleAt - 1)}${use ? `  { setDemoTic: [${(use[0] - DEMO_AT) / 4}, ${moveType(use[1])}]; },\n` : ""}`}` : `${noneLines(steps.length - startAt - 1, "the demo plays; keys are ignored")}`}]>;
+`;
+}
+
+function stepsFromLmp({ lmp, hold = 3 }) {
+  const bin = atob(lmp);
+  const tics = bin.length >>> 2;
+  const view = new DataView(Uint8Array.from(bin, (c) => c.charCodeAt(0)).buffer);
+  const words = [];
+  for (let i = 0; i < tics; i++) words.push([DEMO_AT + i * 4, view.getUint32(i * 4, true)]);
+  words.push([DEMO_AT + tics * 4, DEMO_END]);
+  const steps = [{ keys: [] }, { keys: ["ArrowDown"] }, { keys: [] }, { keys: ["Enter"] }];
+  for (let t = 0; t < tics; t++) {
+    steps.push(t === 0 ? {
+      keys: [],
+      poke: [
+        ...words,
+        [DEMO_P, DEMO_AT],
+        [DEMOPLAYBACK, 1],
+        [PLAYER0_STATE, PST_REBORN],
+        [RNDINDEX, 0],
+        [PRNDINDEX, 0],
+      ],
+    } : { keys: [] });
+  }
+  const IDLE_TICS = 40;
+  for (let h = 0; h < hold; h++) {
+    steps.push(h === 0 ? {
+      keys: [],
+      poke: [
+        ...Array.from({ length: IDLE_TICS }, (_, k) => [DEMO_AT + (tics + k) * 4, 0]),
+        [DEMO_AT + (tics + IDLE_TICS) * 4, DEMO_END],
+      ],
+    } : { keys: [] });
+  }
+  if (hold === 3) {
+    steps.push({ keys: [], poke: [[DEMO_AT + (tics + 3) * 4, 2 << 24]] });
+  } else if (hold === 0) {
+    const FINALE_TICS = 10;
+    steps.push(
+      {
+        keys: [],
+        poke: [
+          ...Array.from({ length: FINALE_TICS }, (_, k) => [DEMO_AT + (tics + k) * 4, 0]),
+          [DEMO_AT + (tics + FINALE_TICS) * 4, DEMO_END],
+        ],
+      },
+      { keys: [] },
+      { keys: [], poke: [[WIPE_GAMESTATE, 2], [FINALECOUNT, 1350]] },
+      { keys: [], poke: [[FINALECOUNT, 1575]] },
+    );
+  }
+  return steps;
+}
+
+// The memory writes for a step's demo actions. `demoLen` is the length of the
+// demo already in memory, so extendDemo writes past it.
+function demoPokes(st, demoLen, i) {
+  const words = (moves) => moves.map(ticWord);
+  if (st.warp) {
+    const mapNum = Number(st.warp.slice(3));
+    const skillNum = (st.skill ?? 4) - 1;
+    const poke = [];
+    let len = demoLen;
+    if (st.playDemo) {
+      const w = words(st.playDemo);
+      len = w.length;
+      poke.push(...w.map((x, k) => [DEMO_AT + 4 * k, x]), [DEMO_AT + 4 * w.length, DEMO_END]);
+    }
+    if (st.bossArena && mapNum === 8) {
+      poke.push(
+        [987188, (3750 << 16) | 416],
+        [987192, (1 << 16) | 270],
+        [987768, (3150 << 16) | 384],
+        [987772, (3003 << 16) | 90],
+        [987776, (448 << 16) | 7],
+        [987780, (90 << 16) | 3150],
+      );
+    }
+    const hasCustomPlayer = !!(st.weapon || st.health !== undefined || st.armor !== undefined || st.backpack !== undefined || st.god !== undefined || st.owned || st.ammo);
+    poke.push(
+      [MENUACTIVE, 0],
+      [WIPE_GAMESTATE, 0],
+      [GAMESKILL, skillNum],
+      [GAMEEPISODE, 1],
+      [GAMEMAP, mapNum],
+      [GAMEACTION, 1],
+      [PLAYERINGAME0, 1],
+      [USERGAME, st.playDemo ? 0 : 1],
+      [DEMOPLAYBACK, st.playDemo ? 1 : 0],
+      [PLAYER0_STATE, hasCustomPlayer ? 0 : PST_REBORN],
+    );
+    if (st.playDemo) {
+      poke.push([DEMO_P, DEMO_AT]);
+    } else {
+      poke.push([MAKETIC, 65 + i], [OLDENTERTICS, 1000000]);
+    }
+    const wInfo = WEAPON_INFO[st.weapon ?? "pistol"];
+    if (hasCustomPlayer) {
+      const hp = st.health ?? 100;
+      const arm = st.armor ?? 0;
+      const armType = st.armorType ?? (arm > 100 ? 2 : arm > 0 ? 1 : 0);
+      const bp = st.backpack ? 1 : 0;
+      const owned = st.owned ? [...st.owned] : [1, 1, 0, 0, 0, 0, 0, 0, 0];
+      if (!st.owned && wInfo) owned[wInfo.idx] = 1;
+      const maxAmmo = bp ? [400, 100, 600, 100] : [200, 50, 300, 50];
+      const ammo = st.ammo ? [...st.ammo] : [50, 0, 0, 0];
+      if (!st.ammo && wInfo?.ammoIdx !== undefined) ammo[wInfo.ammoIdx] = wInfo.defaultAmmo;
+      poke.push(
+        [PLAYER0_HEALTH, hp],
+        [PLAYER0_ARMOR, arm],
+        [PLAYER0_ARMORTYPE, armType],
+        [PLAYER0_BACKPACK, bp],
+        [PLAYER0_READY, wInfo.idx],
+        [PLAYER0_PENDING, st.playDemo ? 10 : wInfo.idx],
+        ...owned.map((v, k) => [PLAYER0_OWNED + 4 * k, v]),
+        ...ammo.map((v, k) => [PLAYER0_AMMO + 4 * k, v]),
+        ...maxAmmo.map((v, k) => [PLAYER0_MAXAMMO + 4 * k, v]),
+      );
+      if (st.god !== undefined) poke.push([PLAYER0_CHEATS, st.god ? 2 : 0]);
+    }
+    if (st.rnd !== undefined) poke.push([RNDINDEX, st.rnd]);
+    if (st.prnd !== undefined) poke.push([PRNDINDEX, st.prnd]);
+    const nextPoke = !st.playDemo && st.weapon && wInfo ? [
+      [PLAYER0_ATTACKDOWN, 0],
+      [PLAYER0_USEDOWN, 0],
+      [PLAYER0_PSPRITE_STATE, wInfo.readyState],
+      [PLAYER0_PSPRITE_TICS, 1],
+      [PLAYER0_PSPRITE_SX, 65536],
+      [PLAYER0_PSPRITE_SY, 2097152],
+    ] : undefined;
+    return { len, poke, nextPoke };
+  }
+  if (st.playDemo) {
+    const w = words(st.playDemo);
+    return {
+      len: w.length,
+      poke: [
+        ...w.map((x, k) => [DEMO_AT + 4 * k, x]),
+        [DEMO_AT + 4 * w.length, DEMO_END],
+        [DEMO_P, DEMO_AT], [DEMOPLAYBACK, 1], [PLAYER0_STATE, PST_REBORN], [RNDINDEX, 0], [PRNDINDEX, 0],
+      ],
+    };
+  }
+  if (st.extendDemo) {
+    if (demoLen === undefined) throw new Error(`Inputs[${i}]: no demo to change; use playDemo first`);
+    const w = words(st.extendDemo);
+    const at = DEMO_AT + 4 * demoLen;
+    return {
+      len: demoLen + w.length,
+      poke: [...w.map((x, k) => [at + 4 * k, x]), [at + 4 * w.length, DEMO_END]],
+      nextPokes: w.length === 10 ? [undefined, [[WIPE_GAMESTATE, 2], [FINALECOUNT, 1350]], [[FINALECOUNT, 1575]]] : undefined,
+    };
+  }
+  if (st.setDemoTic) {
+    if (demoLen === undefined) throw new Error(`Inputs[${i}]: no demo to change; use playDemo first`);
+    const [n, move] = st.setDemoTic;
+    if (!(Number.isInteger(n) && n >= 0 && n < demoLen)) throw new Error(`Inputs[${i}]: setDemoTic ${n}: the demo has tics 0 to ${demoLen - 1}`);
+    return { len: demoLen, poke: [[DEMO_AT + 4 * n, ticWord(move)]] };
+  }
+  if (st.weapon || st.health !== undefined || st.armor !== undefined || st.god !== undefined) {
+    const poke = [];
+    if (st.health !== undefined) poke.push([PLAYER0_HEALTH, st.health]);
+    if (st.armor !== undefined) {
+      const armType = st.armorType ?? (st.armor > 100 ? 2 : st.armor > 0 ? 1 : 0);
+      poke.push([PLAYER0_ARMOR, st.armor], [PLAYER0_ARMORTYPE, armType]);
+    }
+    if (st.god !== undefined) poke.push([PLAYER0_CHEATS, st.god ? 2 : 0]);
+    if (st.weapon) {
+      const wInfo = WEAPON_INFO[st.weapon];
+      poke.push(
+        [PLAYER0_READY, wInfo.idx],
+        [PLAYER0_PENDING, 10],
+        [PLAYER0_OWNED + 4 * wInfo.idx, 1],
+        ...(wInfo.ammoIdx !== undefined ? [[PLAYER0_AMMO + 4 * wInfo.ammoIdx, wInfo.defaultAmmo]] : []),
+        [PLAYER0_ATTACKDOWN, 0],
+        [PLAYER0_USEDOWN, 0],
+        [PLAYER0_PSPRITE_STATE, wInfo.readyState],
+        [PLAYER0_PSPRITE_TICS, 1],
+        [PLAYER0_PSPRITE_SX, 65536],
+        [PLAYER0_PSPRITE_SY, 2097152],
+      );
+    }
+    return { len: demoLen, poke };
+  }
+  return { len: demoLen, poke: undefined };
+}
+
+const SCRIPT_URI = "inmemory://model/inputs.ts";
+let editorModel;
+async function evalScript() {
+  const getWorker = await monaco.languages.typescript.getTypeScriptWorker();
+  const worker = await getWorker(editorModel.uri);
+  const res = await worker.evalInputs(SCRIPT_URI);
+  if (res.error) throw new Error(res.error);
+  let demoLen;
+  const carryPokes = [];
+  const steps = res.steps.map((st, i) => {
+    for (const k of st.keys) if (!BITS.includes(k)) throw new Error(`Inputs[${i}]: "${k}" is not a Key`);
+    const resPoke = demoPokes(st, demoLen, i);
+    demoLen = resPoke.len;
+    let poke = resPoke.poke;
+    if (carryPokes.length) {
+      const carryPoke = carryPokes.shift();
+      if (carryPoke) poke = poke ? [...carryPoke, ...poke] : carryPoke;
+    }
+    if (resPoke.nextPoke) carryPokes.push(resPoke.nextPoke);
+    if (resPoke.nextPokes) carryPokes.push(...resPoke.nextPokes);
+    return { keys: st.keys, poke };
+  });
+  const labels = labelsOf(steps);
+  return steps.map((st, i) => ({ ...st, label: labels[i] }));
+}
+// The timeline text for each tic, from the keys and memory writes alone, so a
+// saved run's labels can be rebuilt from its keyScript whatever the script said.
+function labelsOf(steps) {
+  const demo = demoReader();
+  return steps.map((st) => {
+    const { keys = st, poke } = Array.isArray(st) ? {} : st;
+    const pressed = keys.map((k) => SHORT[k] || k).join(" ");
+    const label = demo(poke) ?? (pressed || "nothing pressed");
+    const does = demoAction(poke);
+    return does ? `${label}   [${does}]` : label;
+  });
+}
+function demoAction(poke) {
+  if (!poke?.length) return "";
+  const mapPoke = poke.find(([a]) => a === GAMEMAP);
+  const boss = poke.some(([a]) => a === 987188);
+  const n = poke.findIndex(([, w]) => w === DEMO_END);
+  if (poke.some(([a]) => a === DEMO_P)) return mapPoke ? `warp E1M${mapPoke[1]} + play demo (${n} tics)` : `play demo (${n} tics)`;
+  if (mapPoke) return boss ? `warp E1M${mapPoke[1]} boss arena` : `warp E1M${mapPoke[1]}`;
+  if (n >= 0 && n === poke.length - 1) return `extend demo (${n} tics)`;
+  if (poke.length === 1 && poke[0][0] >= DEMO_AT && poke[0][0] < 65536) return `set demo tic ${(poke[0][0] - DEMO_AT) / 4}`;
+  if (poke.every(([a, w]) => a >= DEMO_AT && a < 65536 && w !== DEMO_END)) return "";
+  if (poke.some(([a]) => a === PLAYER0_PSPRITE_STATE)) return "equip weapon";
+  if (poke.some(([a, w]) => a === FINALECOUNT && w === 1350)) return "Episode 1 victory text";
+  if (poke.some(([a, w]) => a === FINALECOUNT && w === 1575)) return "Episode 1 victory screen";
+  return `write memory (${poke.length})`;
+}
+
+// While a demo plays, Doom ignores the keyboard and reads one ticcmd per tic
+// from memory, so the timeline shows the demo's input instead of the keys.
+// This mirrors G_ReadDemoTiccmd: pokes land before the tic runs, a write to
+// DEMO_P points the cursor, and each tic reads the word under it until the
+// 0x80 end marker. Returns undefined for tics the demo does not drive.
+function demoReader() {
+  const mem = new Map();
+  let cursor;
+  return (poke = []) => {
+    for (const [a, w] of poke) {
+      if (a === DEMO_P) cursor = w;
+      else if (a < 65536) mem.set(a, w);
+    }
+    if (cursor === undefined) return undefined;
+    const w = mem.get(cursor);
+    if (w === undefined || w === DEMO_END) { cursor = undefined; return undefined; }
+    cursor += 4;
+    return ticcmdLabel(w);
+  };
+}
+function ticcmdLabel(w) {
+  const [f, s, t, b] = wordTic(w);
+  const out = [];
+  if (f) out.push(f > 0 ? `forward ${f}` : `back ${-f}`);
+  if (s) out.push(s > 0 ? `strafe right ${s}` : `strafe left ${-s}`);
+  if (t) out.push(t > 0 ? `turn left ${t}` : `turn right ${-t}`);
+  if (b & 1) out.push("fire");
+  if (b & 2) out.push("use");
+  if (b & 4) out.push(`weapon ${((b >> 3) & 7) + 1}`);
+  return out.join(", ") || "nothing pressed";
+}
+
+const maskOf = (keys) => keys.reduce((m, k) => {
+  const i = BITS.indexOf(k);
+  return i >= 0 ? m | (1 << i) : m;
+}, 0x5a100000) >>> 0;
+
+// Doom runs in the TypeScript type checker: checker-worker.js hands the script
+// to cfg/drive.ts, which resumes from the skill-menu checkpoint and has the chosen checker
+// (compiled to WebAssembly) check doom-keys.cfg.ts chunk by chunk. A frame
+// lands once the checker has evaluated that tic's `entry` call to completion.
+const hud = document.getElementById("hud");
+const canvas = document.getElementById("screen");
+const ctx = canvas.getContext("2d");
+const img = ctx.createImageData(960, 600);
+const rgba = new Uint32Array(img.data.buffer);
+
+let frames = [];   // Uint32Array(64000) per checked frame
+let labels = [];
+let cur = 0;
+let playing = true;
+let worker;
+let checking = false;
+let runT0 = 0;
+let progress = "";
+let curChunk = 0;
+let estChunks = 71;
+let lastTscText = "";
+let stageText = "loading the checker";
+let frameAt = [];  // checker ms when each frame landed, measured in this tab
+let runKey;        // OPFS id of the run on screen; the worker uses it as runId too
+let runInfo;       // { t, checker, startedAt } of that run
+let runStatus;     // "checking" | "finished" | "failed"
+// Doom runs 35 tics per second and the checker runs one tic per frame
+// (drive.ts sets singletics for a key script), so 1x plays 35 frames/s.
+function switchToTab(tabId, autoPlayVideo = false) {
+  for (const t of document.querySelectorAll(".tabs .tab")) {
+    t.classList.toggle("active", t.dataset.tab === tabId);
+    document.getElementById(t.dataset.tab).hidden = t.dataset.tab !== tabId;
+  }
+  if (tabId === "playbackTab") {
+    refreshPast();
+    if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+    const v = document.getElementById("recVideo");
+    v.muted = !document.getElementById("soundChk")?.checked;
+    if (autoPlayVideo) {
+      v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+    } else {
+      v.pause();
+    }
+  } else {
+    pastStop();
+    if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+  }
+}
+for (const tab of document.querySelectorAll(".tabs .tab")) {
+  tab.addEventListener("click", () => switchToTab(tab.dataset.tab));
+}
+document.getElementById("bannerWatchBtn").addEventListener("click", () => switchToTab("playbackTab", true));
+document.getElementById("overlayWatchBtn").addEventListener("click", () => switchToTab("playbackTab", true));
+document.getElementById("backToEditorBtn").addEventListener("click", () => switchToTab("editorTab"));
+
+document.getElementById("recSel").addEventListener("change", (e) => {
+  const v = document.getElementById("recVideo");
+  v.src = "recordings/" + e.target.value + "?v=4";
+  v.muted = !document.getElementById("soundChk")?.checked;
+  v.play().catch(() => {});
+});
+
+const checkerSel = document.getElementById("checkerSel");
+try {
+  const lastChecker = localStorage.getItem("doom-checker");
+  if (lastChecker && [...checkerSel.options].some((o) => o.value === lastChecker)) checkerSel.value = lastChecker;
+} catch {}
+checkerSel.addEventListener("change", () => {
+  try { localStorage.setItem("doom-checker", checkerSel.value); } catch {}
+});
+
+// Upgrades unmodified pre-cd525bd TAS scripts (which had `setDemoTic: [272, ...]`
+// before `extendDemo` folded it in) so "Start from" stays on the TAS preset.
+function normalizeScriptText(text) {
+  if (typeof text === "string" && text.includes("// Based on: almostmatt1's E1M1 0:07.69 UV-Speed TAS") && text.includes("{ setDemoTic: [272, { use: true }] }")) {
+    return presetText("tas");
+  }
+  return text;
+}
+
+const TAB_ID = (() => {
+  try {
+    let id = sessionStorage.getItem("doom-tab-id");
+    if (!id) {
+      id = crypto.randomUUID().slice(0, 8);
+      sessionStorage.setItem("doom-tab-id", id);
+    }
+    return id;
+  } catch {
+    return "";
+  }
+})();
+const META_FILE = TAB_ID ? `meta-${TAB_ID}.json` : "meta.json";
+const END_FILE = TAB_ID ? `end-${TAB_ID}.json` : "end.json";
+
+// The run checker-worker.js saves to OPFS as it goes (see its header). Returns
+// null when there is none, or when the page was opened for a different script.
+async function restoreRun(wantText) {
+  try {
+    const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle("current-run");
+    for await (const name of dir.keys()) {
+      if (name.endsWith("-bounds.jsonl") || name.endsWith("-bounds.json")) {
+        await dir.removeEntry(name).catch(() => {});
+      }
+    }
+    const read = async (name) => (await (await dir.getFileHandle(name)).getFile());
+    let usedTabMeta = true;
+    const savedFile = await read(META_FILE).catch(() => { usedTabMeta = false; return read("meta.json"); });
+    const saved = JSON.parse(await savedFile.text());
+    const savedText = normalizeScriptText(saved.meta.t);
+    if (wantText !== undefined && normalizeScriptText(wantText) !== savedText) return null;
+    // frame n at n * FRAME_BYTES; a torn last frame is dropped and checked again
+    const FRAME_BYTES = 320 * 200 * 4;
+    const files = saved.files ?? saved.runId;
+    const all = await (await read(`${files}-frames.rgba`).catch(() => null))?.arrayBuffer();
+    const restoredFrames = [];
+    for (let at = 0; all && at + FRAME_BYTES <= all.byteLength; at += FRAME_BYTES)
+      restoredFrames.push(new Uint32Array(all.slice(at, at + FRAME_BYTES)));
+    let ckpt = null;
+    for (const i of [0, 1]) {
+      try {
+        const f = await read(`${files}-ckpt-${i}.json`);
+        const head = new Uint8Array(await f.slice(0, 128).arrayBuffer());
+        const c = head[0] === 0x7b ? decodeCheckpoint(new Uint8Array(await f.arrayBuffer())) : decodeCheckpoint(head, f.size);
+        if (c && (!ckpt || c.seq > ckpt.seq)) ckpt = c;
+      } catch {}
+    }
+    const endName = usedTabMeta ? END_FILE : "end.json";
+    const endObj = await read(endName).then(async (f) => { try { return JSON.parse(await f.text()); } catch { return {}; } }, () => null);
+    const ended = endObj !== null;
+    const elapsedMs = endObj?.ms ?? ckpt?.point?.elapsedMs ?? (saved.meta.startedAt ? Math.max(0, Date.now() - saved.meta.startedAt) : 0);
+    return { ...saved.meta, t: savedText, runId: saved.runId, checker: saved.checker, keyScript: saved.keyScript, frames: restoredFrames, ended, elapsedMs };
+  } catch {
+    return null;
+  }
+}
+
+const frameMs = () => 1000 / 35 / (Number(fpsSel.value) || 1);
+
+// Every Editor run is copied to OPFS `history/` as `<runKey>.rgba` (raw frames
+// back to back, FRAME_BYTES each) plus `<runKey>.json`, when it finishes, fails
+// or is replaced by a new run. The Playback tab draws those frames on demand.
+// Writes are chained: two createWritable() calls on one file at once throw.
+const PAST_FRAME_BYTES = 320 * 200 * 4;
+const historyDir = async () => (await navigator.storage.getDirectory()).getDirectoryHandle("history", { create: true });
+let archiveChain = Promise.resolve();
+let archived = "";
+let pauseHint = "";
+function formatPauseHint(raw) {
+  const msg = String(raw ?? "").trim();
+  if (/quota|storage|space|disk/i.test(msg)) {
+    return "Paused: browser storage quota was reached. Click 'Delete all' under Playback → Your runs (or Export run) to free disk space, then click Run to resume.";
+  }
+  if (/memory|allocation|oom|out of memory|unreachable/i.test(msg)) {
+    return "Paused: browser tab reached its WebAssembly memory limit. Refresh this page and click Run to resume from the last saved checkpoint.";
+  }
+  const first = msg.split("\n")[0].replace(/^Error:\s*/i, "");
+  return first
+    ? `Paused (${first}) — click Run on the right to resume from the last saved checkpoint.`
+    : "";
+}
+const deleted = new Set();  // runs the user deleted: never saved again, even when they finish
+function archiveRun(status) {
+  if (!runKey || !frames.length || deleted.has(runKey)) return;
+  // Avoid duplicating 100MB+ unfinished runs into history/ while current-run/ already holds them in OPFS
+  if (status !== "finished" && frames.length > 400) return;
+  const key = runKey;
+  const snap = frames.slice();
+  const tag = `${key}:${snap.length}:${status}`;
+  archived = tag;
+  const info = { ...runInfo, labels, frames: snap.length, status, savedAt: Date.now() };
+  archiveChain = archiveChain.then(async () => {
+    try {
+      const dir = await historyDir();
+      const w = await (await dir.getFileHandle(`${key}.rgba`, { create: true })).createWritable();
+      for (const f of snap) await w.write(f ?? new Uint8Array(PAST_FRAME_BYTES));
+      await w.close();
+      const m = await (await dir.getFileHandle(`${key}.json`, { create: true })).createWritable();
+      await m.write(JSON.stringify(info));
+      await m.close();
+      if (!document.getElementById("playbackTab").hidden) refreshPast();
+    } catch (e) {
+      console.error("auto-save failed", e);
+      if (!checking && (/quota/i.test(String(e?.name ?? "")) || /quota/i.test(String(e?.message ?? e)))) {
+        pauseHint = formatPauseHint(e?.message ?? e?.name ?? "QuotaExceededError");
+        drawHud();
+      }
+    }
+  });
+}
+
+const pastSel = document.getElementById("pastSel");
+const pastScreen = document.getElementById("pastScreen");
+const pastCtx = pastScreen.getContext("2d");
+const pastImg = pastCtx.createImageData(320, 200);
+const pastRgba = new Uint32Array(pastImg.data.buffer);
+const pastPlayBtn = document.getElementById("pastPlayBtn");
+const pastScrub = document.getElementById("pastScrub");
+const pastLabel = document.getElementById("pastLabel");
+const past = { key: "", frames: [], labels: [], cur: 0, playing: false, last: 0 };
+
+async function refreshPast() {
+  const runs = [];
+  try {
+    for await (const [name, h] of (await historyDir()).entries()) {
+      if (!name.endsWith(".json")) continue;
+      try { runs.push({ key: name.slice(0, -5), ...JSON.parse(await (await h.getFile()).text()) }); } catch {}
+    }
+  } catch {}
+  runs.sort((a, b) => b.savedAt - a.savedAt);
+  const keep = runs.some((r) => r.key === pastSel.value) ? pastSel.value : runs[0]?.key;
+  const checkerName = (v) => [...checkerSel.options].find((o) => o.value === v)?.textContent ?? v;
+  const preset = (t) => /^\/\/\s*Based on:\s*(.+)$/m.exec(t ?? "")?.[1] ?? "custom script";
+  pastSel.replaceChildren(...(runs.length ? runs.map((r) => {
+    const o = document.createElement("option");
+    o.value = r.key;
+    o.textContent = `${new Date(r.savedAt).toLocaleString()}, ${preset(r.t)}, ${checkerName(r.checker)}, ${r.frames} frames, ${r.status}`;
+    return o;
+  }) : [Object.assign(document.createElement("option"), { textContent: "No saved runs yet", value: "" })]));
+  pastSel.value = keep ?? "";
+  for (const id of ["pastDelBtn", "pastDelAllBtn", "pastPlayBtn"]) document.getElementById(id).disabled = !runs.length;
+  if (pastSel.value !== past.key) await loadPast(pastSel.value);
+}
+
+async function loadPast(key) {
+  pastStop();
+  past.key = key;
+  past.frames = [];
+  past.labels = [];
+  past.cur = 0;
+  if (key) {
+    try {
+      const dir = await historyDir();
+      const infoText = await (await (await dir.getFileHandle(`${key}.json`)).getFile()).text().catch(() => "{}");
+      const info = JSON.parse(infoText);
+      if (Array.isArray(info.labels)) past.labels = info.labels;
+      const all = await (await (await dir.getFileHandle(`${key}.rgba`)).getFile()).arrayBuffer();
+      for (let at = 0; at + PAST_FRAME_BYTES <= all.byteLength; at += PAST_FRAME_BYTES)
+        past.frames.push(new Uint32Array(all, at, PAST_FRAME_BYTES / 4));
+    } catch {}
+  }
+  pastDraw(0);
+}
+
+function pastDraw(idx) {
+  pastScrub.max = String(Math.max(0, past.frames.length - 1));
+  if (!past.frames.length) {
+    pastCtx.clearRect(0, 0, 320, 200);
+    pastLabel.textContent = "0 / 0";
+    return;
+  }
+  past.cur = Math.max(0, Math.min(past.frames.length - 1, idx));
+  pastRgba.set(past.frames[past.cur]);
+  pastCtx.putImageData(pastImg, 0, 0);
+  pastScrub.value = String(past.cur);
+  pastLabel.textContent = `${past.cur + 1} / ${past.frames.length}`;
+}
+function pastStop() {
+  past.playing = false;
+  pastPlayBtn.textContent = "Play";
+  if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+}
+
+// Plays at 1x: one frame per Doom tic, 35 per second.
+function pastLoop(now) {
+  if (!past.playing) return;
+  requestAnimationFrame(pastLoop);
+  const steps = Math.floor((now - past.last) / (1000 / 35));
+  if (steps < 1) return;
+  past.last += steps * (1000 / 35);
+  const prevCur = past.cur;
+  const activeLabels = past.labels.length ? past.labels : labels;
+  if (past.cur + steps < past.frames.length) {
+    pastDraw(past.cur + steps);
+    if (typeof doomAudio !== "undefined") {
+      for (let k = prevCur + 1; k <= past.cur; k++) doomAudio.onFrame(k, activeLabels[k] || "", false, activeLabels);
+    }
+  } else {
+    pastDraw(past.frames.length - 1);
+    if (typeof doomAudio !== "undefined") {
+      for (let k = prevCur + 1; k <= past.cur; k++) doomAudio.onFrame(k, activeLabels[k] || "", false, activeLabels);
+    }
+    pastStop();
+  }
+}
+
+pastSel.addEventListener("change", () => loadPast(pastSel.value));
+pastScrub.addEventListener("input", () => { pastStop(); pastDraw(Number(pastScrub.value)); });
+pastPlayBtn.addEventListener("click", () => {
+  if (past.playing) return pastStop();
+  if (!past.frames.length) return;
+  document.getElementById("recVideo")?.pause();
+  if (past.cur >= past.frames.length - 1) pastDraw(0);
+  past.playing = true;
+  past.last = performance.now();
+  pastPlayBtn.textContent = "Pause";
+  const activeLabels = past.labels.length ? past.labels : labels;
+  if (typeof doomAudio !== "undefined") {
+    doomAudio.unlock();
+    doomAudio.syncBgm();
+    doomAudio.onFrame(past.cur, activeLabels[past.cur] || "", false, activeLabels);
+  }
+  requestAnimationFrame(pastLoop);
+});
+document.getElementById("pastDelBtn").addEventListener("click", async () => {
+  const key = pastSel.value;
+  if (!key) return;
+  await archiveChain;
+  const dir = await historyDir();
+  await dir.removeEntry(`${key}.json`).catch(() => {});
+  await dir.removeEntry(`${key}.rgba`).catch(() => {});
+  deleted.add(key);
+  showToast("Run deleted");
+  await refreshPast();
+});
+document.getElementById("pastDelAllBtn").addEventListener("click", async () => {
+  if (!confirm("Delete all saved runs from this browser?")) return;
+  await archiveChain;
+  await (await navigator.storage.getDirectory()).removeEntry("history", { recursive: true }).catch(() => {});
+  if (runKey) deleted.add(runKey);
+  showToast("All saved runs deleted");
+  await refreshPast();
+});
+
+// A new run, or (with `saved`, from restoreRun) the run a reload interrupted:
+// its frames are already on screen and the worker continues from its checkpoint.
+function execute(script, saved) {
+  pauseHint = "";
+  if (runStatus) archiveRun(runStatus === "checking" ? "stopped" : runStatus);
+  worker?.terminate();
+  runKey = saved?.runId ?? crypto.randomUUID();
+  const startedAt = saved?.startedAt ?? Date.now();
+  runInfo = { t: saved?.t ?? editor.value, checker: saved?.checker ?? checkerSel.value, startedAt };
+  runStatus = "checking";
+  // A new run keeps showing the old frames until the worker says how many it kept.
+  const oldFrames = frames;
+  frames = saved?.frames ?? oldFrames;
+  frameAt = [];
+  labels = saved?.labels ?? script.map((st) => st.label);
+  cur = saved ? Math.max(0, frames.length - 1) : cur;
+  checking = true;
+  if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+  progress = saved ? "resuming" : "loading the checker";
+  curChunk = 0;
+  estChunks = 71;
+  lastTscText = "";
+  stageText = saved ? "resuming from checkpoint" : "loading the checker";
+  runT0 = performance.now() - (saved?.elapsedMs ?? 0);
+  scrub.max = String(Math.max(0, frames.length - 1));
+  let autoRetryCount = 0;
+  function spawnWorker(isResume) {
+    worker?.terminate();
+    const w = new Worker("checker-worker.js?v=13", { type: "module" });
+    worker = w;
+    const tryAutoRecover = (errText) => {
+      if (worker !== w) return true;
+      if (!/quota|storage|space|disk|wasm unreachable trap/i.test(String(errText ?? "")) && autoRetryCount < 3) {
+        autoRetryCount++;
+        w.terminate();
+        if (worker === w) worker = null;
+        stageText = "recycling worker memory…";
+        progress = `frame ${frames.length + 1}: recycling worker memory and resuming from checkpoint`;
+        drawHud();
+        setTimeout(() => { if (checking) spawnWorker(true); }, 350);
+        return true;
+      }
+      return false;
+    };
+    w.onerror = (ev) => {
+      const msg = ev?.message || "Worker runtime error";
+      if (tryAutoRecover(msg)) {
+        ev?.preventDefault?.();
+      }
+    };
+    w.onmessage = ({ data: m }) => {
+      if (worker !== w) return;
+      if (m.kind === "recycle") {
+        w.terminate();
+        if (worker === w) worker = null;
+        setTimeout(() => { if (checking) spawnWorker(true); }, 60);
+        return;
+      }
+      if (m.bootInspection) tscBootInspection = decodeInspection(m.bootInspection);
+      if (m.inspection) {
+        m.inspection = decodeInspection(m.inspection);
+        tscInspection = m.inspection;
+        if (tscSlideAuto) tscSubSlideIdx = 0;
+      }
+      if (m.kind === "inspected") {
+        tscMidFrame = !m.done && (m.chunks > 0 || frames.length > 0);
+        if (m.chunks > 0) curChunk = m.chunks;
+        recordTscChunkInspection(curChunk || 1, tscInspection || tscBootInspection);
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+        drawHud();
+        return;
+      }
+      if (m.kind === "status") {
+        if (m.text.startsWith("tsc ")) {
+          lastTscText = m.text;
+          stageText = "";
+          const target = Math.max(estChunks, curChunk + 2);
+          progress = `frame ${frames.length + 1}: chunk ${curChunk || 1}/~${target} (${lastTscText})`;
+        } else if (m.text === "type-checking chunk 1" || m.text.startsWith("resuming at frame")) {
+          stageText = "";
+          if (typeof m.chunks === "number" && m.chunks > 0) curChunk = m.chunks;
+          const target = Math.max(estChunks, curChunk + 2);
+          progress = `frame ${frames.length + 1}: checking chunk ${curChunk || 1} of ~${target}`;
+        } else {
+          stageText = m.text;
+          progress = m.text;
+        }
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "kept") {
+        curChunk = 0;
+        tscChunkHistory = [];
+        stageText = "";
+        // The worker kept the old run's frames up to where the scripts differ.
+        frames = oldFrames.slice(0, m.frames);
+        frameAt = [];
+        // This page may not have them, if it opened on a different script.
+        if (oldFrames.length < m.frames) {
+          restoreRun().then((r) => {
+            if (worker !== w || !r) return;
+            for (let i = 0; i < m.frames; i++) frames[i] ??= r.frames[i];
+            scrub.max = String(Math.max(0, frames.length - 1));
+            drawFrame(Math.min(cur, frames.length - 1));
+            updateEditorStatusDecorations();
+          });
+        }
+        cur = Math.min(cur, Math.max(0, frames.length - 1));
+        scrub.max = String(Math.max(0, frames.length - 1));
+        runT0 = performance.now() - (m.elapsedMs ?? 0);
+        progress = m.frames ? `continuing after frame ${m.frames}` : "type-checking chunk 1";
+        if (m.frames) drawFrame(frames.length - 1);
+        else {
+          ctx.clearRect(0, 0, 960, 600);
+          scrub.value = "0";
+          frameLabel.textContent = "0 / 0";
+        }
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "progress") {
+        autoRetryCount = 0;
+        curChunk = m.chunks;
+        tscMidFrame = true;
+        stageText = "";
+        const target = Math.max(estChunks, curChunk + 2);
+        progress = `frame ${m.index + 1}: chunk ${m.chunks} of ~${target} checked`;
+        recordTscChunkInspection(curChunk, m.inspection || tscInspection);
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "frame") {
+        autoRetryCount = 0;
+        frames[m.index] = new Uint32Array(m.rgba.buffer);
+        frameAt[m.index] = m.ms;
+        if (m.chunks > 0) estChunks = m.chunks;
+        if (m.inspection) recordTscChunkInspection(m.chunks || 1, m.inspection);
+        if (tscChunkHistory.length) tscSavedFrameHistories.set(m.index, tscChunkHistory.slice());
+        curChunk = 0;
+        tscMidFrame = false;
+        tscChunkHistory = [];
+        stageText = "";
+        progress = `frame ${m.index + 1} checked in ${m.chunks} chunks`;
+        scrub.max = String(frames.length - 1);
+        // Follow the newest frame unless the user is scrubbing back.
+        if (playing && cur >= m.index - 1) {
+          drawFrame(m.index);
+        }
+        if (typeof doomAudio !== "undefined") {
+          doomAudio.onFrame(m.index, labels[m.index] || "", true);
+          doomAudio.syncBgm();
+        }
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "end" && m.result.failed) {
+        if (tryAutoRecover(m.result.failed)) return;
+        // drive.ts gave up on a chunk: the run stopped early, it did not finish.
+        checking = false;
+        w.terminate();
+        if (worker === w) worker = null;
+        stageText = "";
+        progress = `checker failed after ${frames.length} frames`;
+        pauseHint = formatPauseHint(m.result.failed);
+        playing = false;
+        playBtn.textContent = "Play";
+        drawFrame(frames.length - 1);
+        console.error(m.result.failed);
+        showToast(`The checker failed on frame ${frames.length + 1}: ${m.result.failed.split("\n")[0]}`);
+        archiveRun(runStatus = "failed");
+        if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "end") {
+        checking = false;
+        w.terminate();
+        if (worker === w) worker = null;
+        curChunk = 0;
+        tscMidFrame = false;
+        stageText = "";
+        progress = `done: ${frames.length} frames in ${fmtTime(m.result.ms)}`;
+        archiveRun(runStatus = "finished");
+        if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      } else if (m.kind === "error") {
+        if (tryAutoRecover(m.text)) return;
+        checking = false;
+        w.terminate();
+        if (worker === w) worker = null;
+        stageText = "";
+        progress = "checker error";
+        pauseHint = formatPauseHint(m.text);
+        archiveRun(runStatus = "failed");
+        console.error(m.text);
+        showToast(m.text.split("\n")[0]);
+        if (typeof doomAudio !== "undefined") doomAudio.syncBgm();
+        updateTscSlideshow();
+        updateEditorStatusDecorations();
+      }
+      if (!frames.length || m.kind !== "frame") drawHud();
+    };
+    if (isResume) return w.postMessage({ resume: true, tabId: TAB_ID });
+    w.postMessage({
+      runId: runKey,
+      tabId: TAB_ID,
+      checker: checkerSel.value,
+      keyScript: script.map((st) => (st.poke ? { keys: st.keys, poke: st.poke } : st.keys)),
+      meta: { t: editor.value, x: Number(fpsSel.value), labels, startedAt },
+      continue: true,
+    });
+  }
+  spawnWorker(!!saved);
+}
+
+const fmtTime = (ms) => {
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m${String(s % 60).padStart(2, "0")}s` : `${Math.floor(s / 3600)}h${String(Math.floor(s / 60) % 60).padStart(2, "0")}m`;
+};
+
+const scrub = document.getElementById("scrub");
+const frameLabel = document.getElementById("frameLabel");
+const playBtn = document.getElementById("playBtn");
+const presetSel = document.getElementById("presetSel");
+const fpsSel = document.getElementById("fpsSel");
+const loopChk = document.getElementById("loopChk");
+const soundChk = document.getElementById("soundChk");
+
+// Doom E1M1 background music (normal 1x speed) + authentic Doom WAD SFX (DSPISTOL, DSSWTCHX, DSDOROPN, DSPSTOP, DSSWTCHN)
+const doomAudio = (() => {
+  let actx = null, master = null, bgmGain = null, mediaDest = null;
+  let sfxRaw = null, sfxBuffers = {}, sfxUrls = {}, bgmArrayBuf = null, bgmBuffer = null, decodingBgm = false;
+  let bgmSource = null, bgmPlaying = false, bgmBlocked = false;
+  let recordingVideo = false, lastFireIdx = -999;
+
+  const bgmEl = new Audio("recordings/e1m1.m4a?v=3");
+  bgmEl.loop = true;
+  bgmEl.preload = "auto";
+  bgmEl.volume = 0.55;
+
+  function makeWavUrl(bin, rate) {
+    const n = bin.length;
+    const buf = new ArrayBuffer(44 + n);
+    const v = new DataView(buf);
+    const str = (off, s) => { for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); };
+    str(0, "RIFF"); v.setUint32(4, 36 + n, true); str(8, "WAVEfmt ");
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate, true);
+    v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+    str(36, "data"); v.setUint32(40, n, true);
+    const u8 = new Uint8Array(buf, 44);
+    for (let i = 0; i < n; i++) u8[i] = bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+  }
+
+  fetch("recordings/doom-sfx.json?v=3").then((r) => r.json()).then((data) => {
+    sfxRaw = data;
+    for (const [name, item] of Object.entries(data)) {
+      sfxUrls[name] = makeWavUrl(atob(item.pcm), item.rate);
+    }
+    if (actx) buildSfxBuffers();
+  }).catch(() => {});
+
+  fetch("recordings/e1m1.m4a?v=3").then((r) => r.arrayBuffer()).then((buf) => {
+    bgmArrayBuf = buf;
+    if (actx) decodeBgm();
+  }).catch(() => {});
+
+  function buildSfxBuffers() {
+    if (!actx || !sfxRaw) return;
+    for (const [name, item] of Object.entries(sfxRaw)) {
+      if (sfxBuffers[name]) continue;
+      const bin = atob(item.pcm);
+      const buf = actx.createBuffer(1, bin.length, item.rate);
+      const ch = buf.getChannelData(0);
+      for (let i = 0; i < bin.length; i++) ch[i] = (bin.charCodeAt(i) - 128) / 128;
+      sfxBuffers[name] = buf;
+    }
+  }
+
+  let decodeBgmPromise = null;
+  function decodeBgm() {
+    if (!actx || !bgmArrayBuf || bgmBuffer) return Promise.resolve();
+    if (decodeBgmPromise) return decodeBgmPromise;
+    const copy = bgmArrayBuf.slice(0);
+    decodeBgmPromise = actx.decodeAudioData(copy).then((decoded) => {
+      bgmBuffer = decoded;
+      decodeBgmPromise = null;
+      if (recordingVideo) syncBgm();
+    }).catch(() => { decodeBgmPromise = null; });
+    return decodeBgmPromise;
+  }
+
+  function ensure() {
+    if (!actx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      actx = new Ctx();
+      master = actx.createGain();
+      master.gain.value = soundChk.checked ? 0.85 : 0;
+      master.connect(actx.destination);
+      try {
+        mediaDest = actx.createMediaStreamDestination();
+        master.connect(mediaDest);
+        // Keep-alive silent oscillator so Firefox's WebM muxer always receives audio packets.
+        const keepOsc = actx.createOscillator();
+        const keepGain = actx.createGain();
+        keepGain.gain.value = 0.00001;
+        keepOsc.connect(keepGain);
+        keepGain.connect(mediaDest);
+        keepOsc.start();
+      } catch {}
+      bgmGain = actx.createGain();
+      bgmGain.gain.value = 0.65;
+      bgmGain.connect(master);
+    }
+    buildSfxBuffers();
+    decodeBgm();
+    if (actx.state === "suspended") actx.resume().catch(() => {});
+    master.gain.setTargetAtTime(soundChk.checked || recordingVideo ? 0.85 : 0, actx.currentTime, 0.015);
+    return actx;
+  }
+
+  function playSfx(name, vol = 1.0) {
+    if (recordingVideo || (actx && actx.state === "running")) {
+      ensure();
+      const buf = sfxBuffers[name];
+      if (buf) {
+        const src = actx.createBufferSource();
+        const g = actx.createGain();
+        src.buffer = buf;
+        g.gain.value = vol;
+        src.connect(g);
+        g.connect(master);
+        src.start();
+        return;
+      }
+    }
+    if (sfxUrls[name] && soundChk.checked) {
+      const a = new Audio(sfxUrls[name]);
+      a.volume = Math.min(1, vol * 0.85);
+      a.play().catch(() => {});
+    }
+  }
+
+  function shouldPlayBgm() {
+    if (!soundChk.checked && !recordingVideo) return false;
+    if (recordingVideo || past.playing) return true;
+    if (!document.getElementById("playbackTab")?.hidden) return false;
+    return playing && (checking || frames.length > 0);
+  }
+
+  function startRecBgmNode() {
+    if (bgmPlaying || !bgmBuffer || !actx) return;
+    const src = actx.createBufferSource();
+    src.buffer = bgmBuffer;
+    src.loop = true;
+    src.playbackRate.value = 1.0;
+    src.connect(bgmGain);
+    src.start(0, 0);
+    bgmSource = src;
+    bgmPlaying = true;
+  }
+
+  function stopRecBgmNode() {
+    if (!bgmPlaying) return;
+    try { bgmSource.stop(); bgmSource.disconnect(); } catch {}
+    bgmSource = null;
+    bgmPlaying = false;
+  }
+
+  function syncBgm(fromGesture = false) {
+    if (recordingVideo) {
+      bgmEl.pause();
+      if (ensure()) startRecBgmNode();
+      return;
+    }
+    stopRecBgmNode();
+    bgmEl.muted = !soundChk.checked;
+    bgmEl.playbackRate = 1.0;
+    if (shouldPlayBgm()) {
+      if (bgmEl.paused || (fromGesture && bgmBlocked)) {
+        bgmBlocked = false;
+        bgmEl.play().then(() => {
+          bgmBlocked = false;
+        }).catch(() => {
+          bgmBlocked = true;
+          try { bgmEl.pause(); } catch {}
+        });
+      }
+    } else {
+      bgmBlocked = false;
+      bgmEl.pause();
+    }
+  }
+
+  function onFrame(idx, label = "", fromWorker = false, labelList = labels) {
+    if (!soundChk.checked && !recordingVideo) return;
+    const lbl = String(label || "").toLowerCase();
+    const prevLbl = idx > 0 ? String((labelList && labelList[idx - 1]) || "").toLowerCase() : "";
+    const hasWord = (s, w) => s.split(/[^a-z0-9]+/).includes(w);
+    if (idx < 0 || idx < lastFireIdx) lastFireIdx = -999;
+    let played = false;
+
+    const fired = hasWord(lbl, "fire") || lbl.includes("controlleft");
+    const prevFired = hasWord(prevLbl, "fire") || prevLbl.includes("controlleft");
+    if (fired && (!prevFired || idx - lastFireIdx >= 14)) {
+      lastFireIdx = idx;
+      playSfx("DSPISTOL", 1.05);
+      played = true;
+    }
+
+    const used = hasWord(lbl, "use") || lbl.includes("space") || lbl.includes("set demo tic");
+    const prevUsed = hasWord(prevLbl, "use") || prevLbl.includes("space") || prevLbl.includes("set demo tic");
+    if (used && !prevUsed) {
+      if (idx >= 275) playSfx("DSSWTCHN", 0.95);
+      else if (idx >= 170) playSfx("DSSWTCHX", 1.0);
+      else playSfx("DSDOROPN", 0.95);
+      played = true;
+    }
+
+    if (idx < 10 && hasWord(lbl, "enter") && !hasWord(prevLbl, "enter")) {
+      playSfx("DSSWTCHN", 0.95);
+      played = true;
+    } else if (idx < 6 && (hasWord(lbl, "down") || hasWord(lbl, "up") || lbl.includes("arrowdown") || lbl.includes("arrowup"))) {
+      playSfx("DSPSTOP", 0.9);
+      played = true;
+    }
+
+    if (fromWorker && !played) {
+      playSfx("DSPSTOP", 0.45);
+    }
+  }
+
+  return {
+    unlock() { ensure(); syncBgm(true); },
+    isBlocked() { return bgmBlocked; },
+    syncBgm,
+    onFrame,
+    async setRecording(v) {
+      recordingVideo = v;
+      if (ensure()) {
+        if (actx.state === "suspended") await actx.resume().catch(() => {});
+        if (v) await decodeBgm();
+      }
+      syncBgm();
+    },
+    getAudioTracks() { ensure(); return mediaDest ? mediaDest.stream.getAudioTracks() : []; },
+  };
+})();
+soundChk.addEventListener("change", () => {
+  const v = document.getElementById("recVideo");
+  if (v) v.muted = !soundChk.checked;
+  doomAudio.unlock();
+});
+loopChk.addEventListener("change", () => doomAudio.syncBgm());
+// Only use events that Firefox/Chrome/Safari treat as valid user-activation for HTMLMediaElement.play().
+// (In Firefox, pointerdown is NOT a user-activation event and calling play() in pointerdown poisons the following click!)
+for (const ev of ["click", "keydown", "touchend"]) {
+  window.addEventListener(ev, () => { if (soundChk.checked) doomAudio.unlock(); }, { passive: true });
+}
+await new Promise((resolve) => {
+  const base = new URL("monaco/", location.href).href;
+  window.MonacoEnvironment = {
+    getWorkerUrl: () => URL.createObjectURL(new Blob([
+      `self.MonacoEnvironment = { baseUrl: "${base}" }; importScripts("${base}vs/base/worker/workerMain.js");`,
+    ], { type: "text/javascript" })),
+  };
+  require.config({ baseUrl: base, paths: { vs: base + "vs" } });
+  require(["vs/editor/editor.main"], resolve);
+});
+const origUriParse = monaco.Uri.parse.bind(monaco.Uri);
+monaco.Uri.parse = (value, strict) => {
+  const u = origUriParse(value, strict);
+  return u.scheme === "file" ? u.with({ scheme: "inmemory" }) : u;
+};
+monaco.editor.registerLinkOpener({
+  open(resource) {
+    return resource.scheme !== "http" && resource.scheme !== "https";
+  },
+});
+const tsDefaults = monaco.languages.typescript.typescriptDefaults;
+tsDefaults.setCompilerOptions({ target: monaco.languages.typescript.ScriptTarget.ES2020, strict: true, noEmit: true });
+tsDefaults.setWorkerOptions({ customWorkerPath: new URL(`ts-eval-worker.js?${Date.now()}`, location.href).href });
+tsDefaults.setEagerModelSync(true);
+tsDefaults.addExtraLib(PRELUDE, "inmemory://model/doom-inputs.d.ts");
+editorModel = monaco.editor.createModel("", "typescript", monaco.Uri.parse(SCRIPT_URI));
+const monacoEditor = monaco.editor.create(document.getElementById("editor"), {
+  model: editorModel, theme: "vs-dark", automaticLayout: true, minimap: { enabled: false },
+  fontSize: 12.5, scrollBeyondLastLine: false, quickSuggestions: { strings: true, other: true, comments: false },
+});
+let settingEditor = false;
+const editor = {
+  get value() { return editorModel.getValue(); },
+  set value(v) { settingEditor = true; editorModel.setValue(v); settingEditor = false; },
+};
+const toast = document.getElementById("toast");
+
+function showToast(msg) {
+  toast.textContent = msg;
+  setTimeout(() => { if (toast.textContent === msg) toast.textContent = ""; }, 2600);
+}
+
+function drawHud() {
+  const t = cur / 35;
+  const elapsedMs = checking ? Math.max(0, performance.now() - runT0) : 0;
+  const elapsed = checking ? fmtTime(elapsedMs) : "";
+  const at = frames.length ? `frame ${cur + 1}/${frames.length} of ${labels.length} (${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, "0")})\ninput  ${labels[cur]}\n` : "";
+  // Rate measured in this tab. Sparse after a resume: restored frames have no time.
+  const seen = frameAt.flatMap((ms, i) => ms === undefined ? [] : [[i, ms]]);
+  const n = seen.length;
+  const rate = n > 1 ? `\nmeasured: ${((seen[n - 1][1] - seen[0][1]) / (seen[n - 1][0] - seen[0][0]) / 1000).toFixed(1)}s per frame` : "";
+  hud.textContent = `${at}checker: ${progress}${elapsed ? ` (${elapsed})` : ""}${rate}`;
+  updateLiveStatus(elapsed);
+  drawTimeline();
+}
+function updateLiveStatus(elapsed) {
+  const total = labels.length || 277;
+  const nextFrame = Math.min(total, frames.length + 1);
+  const targetChunks = Math.max(estChunks, curChunk + 2);
+  const checkerLabel = checkerSel.selectedOptions[0]?.textContent?.split(" ")[0] || checkerSel.value || "tsgo-doom";
+  const recDot = document.getElementById("recDot");
+  const liveBanner = document.getElementById("liveBanner");
+  const liveTitle = document.getElementById("liveTitle");
+  const liveBadge = document.getElementById("liveBadge");
+  const liveSubText = document.getElementById("liveSubText");
+  const liveBarFill = document.getElementById("liveBarFill");
+  const overlay = document.getElementById("screenOverlay");
+  const overlayDot = document.getElementById("overlayDot");
+  const overlayPillText = document.getElementById("overlayPillText");
+  const overlayTitle = document.getElementById("overlayTitle");
+  const overlaySub = document.getElementById("overlaySub");
+  const overlayBarFill = document.getElementById("overlayBarFill");
+
+  const isDone = !checking && runStatus === "finished" && frames.length > 0;
+  const isStopped = !checking && !isDone;
+  recDot.className = "rec-dot" + (isDone ? " done" : isStopped ? " stopped" : "");
+  overlayDot.className = recDot.className;
+  liveBanner.className = "live-banner" + (isDone ? " done" : isStopped ? " stopped" : "");
+  liveBarFill.className = "live-bar-fill" + (isDone ? " done" : "");
+  overlayBarFill.className = "overlay-bar-fill" + (isDone ? " done" : "");
+
+  const chunkFrac = checking && !stageText ? Math.min(0.98, curChunk / targetChunks) : 0;
+  const runPct = isDone ? 100 : total > 0 ? Math.min(100, ((frames.length + chunkFrac) / total) * 100) : 0;
+  const frame1Pct = isDone
+    ? 100
+    : checking
+      ? stageText
+        ? 5
+        : Math.min(98, Math.max(6, Math.round(((curChunk + 0.35) / targetChunks) * 100)))
+      : 0;
+  liveBarFill.style.width = `${runPct.toFixed(2)}%`;
+  overlayBarFill.style.width = `${frame1Pct}%`;
+  if (checking) {
+      const chunkDesc = stageText
+        ? stageText
+        : curChunk > 0
+          ? `Chunk ${curChunk}/${targetChunks}${lastTscText ? ` (${lastTscText})` : ""}`
+          : `Chunk 1/~${targetChunks}`;
+      const badgeDesc = stageText
+        ? stageText
+        : `Chunk ${curChunk || 1}/~${targetChunks}`;
+      liveBadge.textContent = `${badgeDesc}${elapsed ? ` · ${elapsed}` : ""}`;
+      if (frames.length === 0) {
+        liveTitle.textContent = `RECORDING FRAME 1 / ${total} IN TYPESCRIPT...`;
+        liveSubText.textContent = `Live type-checking Doom (~20–30s per frame, ~35–70 chunks). Keep this tab open; frames auto-save as they finish.`;
+      } else {
+        liveTitle.textContent = `RECORDING FRAME ${nextFrame} / ${total} (${frames.length} READY)`;
+        liveSubText.textContent = `${frames.length} ${frames.length === 1 ? "frame" : "frames"} ready below — Play, Step, or Scrub while ${checkerLabel} records the rest in background.`;
+      }
+    overlayPillText.textContent = "LIVE TYPE-CHECK RECORDING IN PROGRESS — THIS TAKES A WHILE";
+    overlayTitle.textContent = `TypeScript (${checkerLabel}) is compiling Frame 1 of ${total}...`;
+    overlaySub.textContent = `${chunkDesc}${elapsed ? ` · ${elapsed} elapsed` : ""}${labels[0] ? ` · tic 1 input: ${labels[0]}` : ""}`;
+  } else if (isDone) {
+    liveTitle.textContent = `FINISHED — ALL ${frames.length} FRAMES RECORDED BY TYPESCRIPT`;
+    liveBadge.textContent = `${frames.length} / ${total} frames`;
+    liveSubText.textContent = `All ${frames.length} frames have been type-checked and saved in your browser. Press Play below to watch, or edit the TypeScript inputs on the right and click Run.`;
+  } else {
+    liveTitle.textContent = frames.length
+      ? `PAUSED / STOPPED AFTER ${frames.length} OF ${total} FRAMES`
+      : `READY TO RECORD IN THE TYPESCRIPT TYPE CHECKER`;
+    liveBadge.textContent = `${frames.length} / ${total} frames`;
+      liveSubText.textContent =
+        pauseHint || `Click Run on the right to ${frames.length ? "resume type-checking from the last saved checkpoint" : "start type-checking Frame 1"}.`;
+      overlayPillText.textContent = runStatus === "failed" ? "TYPE-CHECKER STOPPED" : "READY TO RUN";
+      overlayTitle.textContent = runStatus === "failed"
+        ? `Type-checker stopped before Frame 1 finished (${progress})`
+        : `Click "Run" on the right to start type-checking Frame 1 of ${total}`;
+      overlaySub.textContent = pauseHint || "Each frame is evaluated live by the TypeScript compiler (~35-70 chunks per frame).";
+  }
+  overlay.hidden = frames.length > 0;
+  hud.hidden = frames.length === 0;
+  if (!frames.length) {
+    frameLabel.textContent = checking ? `0 / ${total} (recording frame 1...)` : `0 / ${total}`;
+  }
+}
+
+// The timeline lists every tic of the script. It follows the shown frame (the
+// tic being checked before any frame lands) until the user scrolls it, then
+// stays put until "Follow current frame".
+const timeline = document.getElementById("timeline");
+const followBtn = document.getElementById("followBtn");
+let tlLabels = null, tlRows = [], tlDone = 0, tlNext = -1, tlCur = -1, tlFollow = true;
+function drawTimeline() {
+  if (tlLabels !== labels) {
+    tlLabels = labels;
+    tlDone = 0; tlNext = tlCur = -1;
+    tlRows = labels.map((label, i) => {
+      const li = document.createElement("li");
+      li.dataset.i = String(i);
+      const t = i / 35;
+      li.innerHTML = `<span class="n">${i + 1}</span><span class="t">${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, "0")}</span><span></span>`;
+      li.lastChild.textContent = label;
+      return li;
+    });
+    timeline.replaceChildren(...tlRows);
+  }
+  const done = Math.min(frames.length, tlRows.length);
+  if (done < tlDone) { for (const li of tlRows) li.classList.remove("done"); tlDone = 0; }
+  for (; tlDone < done; tlDone++) tlRows[tlDone].classList.add("done");
+  const next = checking && done < tlRows.length ? done : -1;
+  if (next !== tlNext) { tlRows[tlNext]?.classList.remove("next"); tlRows[next]?.classList.add("next"); tlNext = next; }
+  if (next >= 0 && tlRows[next]) {
+    const targetChunks = Math.max(estChunks, curChunk + 2);
+    tlRows[next].dataset.status = stageText
+      ? `● ${stageText}`
+      : `● rec chunk ${curChunk || 1}/~${targetChunks}`;
+  }
+  const at = frames.length ? cur : -1;
+  if (at !== tlCur) { tlRows[tlCur]?.classList.remove("cur"); tlRows[at]?.classList.add("cur"); tlCur = at; }
+  const row = tlRows[at >= 0 ? at : next];
+  // A third of the way down, so the upcoming tics are in view.
+  if (tlFollow && row) timeline.scrollTop = row.offsetTop - timeline.clientHeight / 3;
+}
+// Only user input stops following; drawTimeline's own scrollTop writes do not.
+const stopFollow = () => { tlFollow = false; followBtn.hidden = false; };
+timeline.addEventListener("wheel", stopFollow, { passive: true });
+timeline.addEventListener("touchmove", stopFollow, { passive: true });
+timeline.addEventListener("keydown", stopFollow);
+timeline.addEventListener("pointerdown", (e) => { if (e.target === timeline) stopFollow(); }); // scrollbar drag
+followBtn.addEventListener("click", () => { tlFollow = true; followBtn.hidden = true; if (checking) { playing = true; playBtn.textContent = "Pause"; } if (frames.length) drawFrame(frames.length - 1); enableTscAutoStep(); drawTimeline(); doomAudio.syncBgm(); });
+timeline.addEventListener("click", (e) => {
+  const li = e.target.closest("li");
+  if (!li) return;
+  const idx = Number(li.dataset.i);
+  if (idx === frames.length && (checking || tscMidFrame)) {
+    enableTscAutoStep();
+    return;
+  }
+  if (idx >= frames.length) return;
+  playing = false; playBtn.textContent = "Play"; drawFrame(idx);
+  inspectTscFrame(idx);
+  doomAudio.syncBgm(); doomAudio.onFrame(cur, labels[cur] || "");
+});
+
+function renderRgba320x200ToMain(src) {
+  if (!src) return;
+  for (let y = 0; y < 200; y++) {
+    const sRow = y * 320, d0 = y * 3 * 960, d1 = d0 + 960, d2 = d1 + 960;
+    for (let x = 0; x < 320; x++) {
+      const p = src[sRow + x], dx = x * 3;
+      rgba[d0 + dx] = rgba[d0 + dx + 1] = rgba[d0 + dx + 2] =
+      rgba[d1 + dx] = rgba[d1 + dx + 1] = rgba[d1 + dx + 2] =
+      rgba[d2 + dx] = rgba[d2 + dx + 1] = rgba[d2 + dx + 2] = p;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function drawFrame(idx) {
+  if (!frames.length) return drawHud();
+  cur = Math.max(0, Math.min(frames.length - 1, idx));
+  // a kept frame still being read back from OPFS
+  const src = frames[cur];
+  if (src) {
+    renderRgba320x200ToMain(src);
+  } else {
+    rgba.fill(0);
+    ctx.putImageData(img, 0, 0);
+  }
+  scrub.value = String(cur);
+  frameLabel.textContent = `${cur + 1} / ${frames.length}`;
+  drawHud();
+  updateEditorCurDecoration();
+}
+setInterval(() => { if (checking) { drawHud(); doomAudio.syncBgm(); } }, 1000);
+
+async function runCurrent() {
+  try {
+    try { localStorage.setItem("doom-checker", checkerSel.value); } catch {}
+    if (location.hash) {
+      const h = await decodeHash(location.hash).catch(() => null);
+      if (!h || normalizeScriptText(h.t) !== normalizeScriptText(editor.value)) {
+        history.replaceState(null, "", location.pathname + location.search);
+      }
+    }
+    hud.textContent = "resolving type Inputs…";
+    const script = await evalScript();
+    if (!script.length) { showToast("Script is empty"); return; }
+    execute(script);
+    drawHud();
+    playing = true;
+    playBtn.textContent = "Pause";
+    doomAudio.syncBgm();
+  } catch (e) {
+    playing = false;
+    playBtn.textContent = "Play";
+    doomAudio.syncBgm();
+    hud.textContent = "Error: " + e.message;
+    showToast(e.message);
+  }
+}
+
+// A preset only fills the editor: the user amends it and starts the check with
+// Run. Switching presets never kills a check that is in progress.
+let editorEdited = false;
+const STAGE_TAS_SPLITS = {
+  e1m2_tas: { map: 2, title: "E1M2: Nuclear Plant", time: "0:18.57", start: 295, end: 945, hp: 98, arm: 1, armType: 1, backpack: false, weapon: "shotgun", owned: [1,1,1,0,0,0,0,0,0], ammo: [42,4,0,0], rnd: 44, prnd: 112 },
+  e1m3_tas: { map: 3, title: "E1M3: Toxin Refinery", time: "0:30.71", start: 960, end: 2035, hp: 100, arm: 0, armType: 0, backpack: false, weapon: "shotgun", owned: [1,1,1,0,0,0,0,0,0], ammo: [75,23,0,0], rnd: 224, prnd: 153 },
+  e1m4_tas: { map: 4, title: "E1M4: Command Control", time: "0:10.60", start: 2050, end: 2421, hp: 102, arm: 1, armType: 1, backpack: false, weapon: "shotgun", owned: [1,1,1,0,0,0,0,0,0], ammo: [130,43,0,0], rnd: 72, prnd: 62 },
+  e1m5_tas: { map: 5, title: "E1M5: Phobos Lab", time: "0:34.69", start: 2436, end: 3650, hp: 105, arm: 1, armType: 1, backpack: false, weapon: "shotgun", owned: [1,1,1,0,0,0,0,0,0], ammo: [134,42,0,0], rnd: 211, prnd: 123 },
+  e1m6_tas: { map: 6, title: "E1M6: Central Processing", time: "0:37.00", start: 3665, end: 4960, hp: 89, arm: 94, armType: 1, backpack: false, weapon: "shotgun", owned: [1,1,1,0,0,0,0,0,0], ammo: [174,49,0,0], rnd: 206, prnd: 197 },
+  e1m7_tas: { map: 7, title: "E1M7: Computer Station", time: "0:52.66", start: 4975, end: 6818, hp: 40, arm: 77, armType: 1, backpack: true, weapon: "shotgun", owned: [1,1,1,1,1,0,0,0,0], ammo: [188,67,20,1], rnd: 73, prnd: 1 },
+  e1m8_tas: { map: 8, title: "E1M8: Phobos Anomaly (Boss Stage)", time: "0:16.74", start: 6833, end: 7419, hp: 112, arm: 59, armType: 1, backpack: true, weapon: "shotgun", owned: [1,1,1,1,1,0,0,0,0], ammo: [218,88,20,1], rnd: 30, prnd: 130 },
+};
+const STAGE_STARTERS = {
+  e1m8_boss: {
+    note: "E1M8 Phobos Anomaly — Bruiser Brothers Boss Fight (2x Baron of Hell in the Star Arena)",
+    warp: `{ warp: "E1M8", bossArena: true, skill: 4, weapon: "rocket", health: 200, armor: 200 }`,
+    lines: [
+      "  ...hold<[TURN_LEFT, FIRE], 2>, // aim at right Baron of Hell and fire rockets",
+      "  ...hold<[FIRE], 112>,          // 5 rockets take down the first Baron (1000 HP)",
+      "  ...hold<[TURN_RIGHT, FIRE], 4>, // pivot to the second Baron of Hell",
+      "  ...hold<[FIRE], 66>,           // finish the second Baron to lower Sector Tag 666",
+    ],
+  },
+  stage_e1m1: {
+    note: "Stage 1 Starter — E1M1: Hangar (Ultra-Violence + Shotgun)",
+    warp: `{ warp: "E1M1", skill: 4, weapon: "shotgun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[TURN_RIGHT, FORWARD, RUN], 15>,",
+      "  ...hold<[FORWARD, RUN], 25>,",
+      "  ...hold<[TURN_LEFT, FORWARD, RUN], 15>,",
+    ],
+  },
+  stage_e1m2: {
+    note: "Stage 2 Starter — E1M2: Nuclear Plant (Ultra-Violence + Shotgun)",
+    warp: `{ warp: "E1M2", skill: 4, weapon: "shotgun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 25>,",
+      "  ...hold<[TURN_RIGHT, FORWARD, RUN], 15>,",
+      "  ...hold<[FORWARD, RUN, FIRE], 15>,",
+    ],
+  },
+  stage_e1m3: {
+    note: "Stage 3 Starter — E1M3: Toxin Refinery (Ultra-Violence + Shotgun)",
+    warp: `{ warp: "E1M3", skill: 4, weapon: "shotgun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 18>,",
+      "  ...hold<[USE], 2>, // open the starting door",
+      "  ...hold<[FORWARD, RUN], 20>,",
+      "  ...hold<[FIRE], 15>, // blast the shotgun guys in the dark room",
+    ],
+  },
+  stage_e1m4: {
+    note: "Stage 4 Starter — E1M4: Command Control (Ultra-Violence + Chaingun)",
+    warp: `{ warp: "E1M4", skill: 4, weapon: "chaingun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 25>,",
+      "  ...hold<[USE], 2>, // open the starting door",
+      "  ...hold<[FORWARD, RUN], 25>,",
+    ],
+  },
+  stage_e1m5: {
+    note: "Stage 5 Starter — E1M5: Phobos Lab (Ultra-Violence + Chaingun)",
+    warp: `{ warp: "E1M5", skill: 4, weapon: "chaingun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 30>, // charge across the toxic nukage",
+      "  ...hold<[FORWARD, RUN, FIRE], 25>,",
+    ],
+  },
+  stage_e1m6: {
+    note: "Stage 6 Starter — E1M6: Central Processing (Ultra-Violence + Chaingun)",
+    warp: `{ warp: "E1M6", skill: 4, weapon: "chaingun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 25>,",
+      "  ...hold<[TURN_LEFT, FORWARD, RUN], 12>,",
+      "  ...hold<[FORWARD, RUN, FIRE], 18>,",
+    ],
+  },
+  stage_e1m7: {
+    note: "Stage 7 Starter — E1M7: Computer Station (Ultra-Violence + Chaingun)",
+    warp: `{ warp: "E1M7", skill: 4, weapon: "chaingun", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 20>,",
+      "  ...hold<[USE], 2>, // open the starting door",
+      "  ...hold<[FORWARD, RUN], 20>,",
+      "  ...hold<[FORWARD, RUN, FIRE], 15>,",
+    ],
+  },
+  stage_e1m8: {
+    note: "Stage 8 Starter — E1M8: Phobos Anomaly (20-Barrel Pinky Room Chain Explosion)",
+    warp: `{ warp: "E1M8", skill: 4, weapon: "rocket", health: 100, armor: 100, god: true }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 8>,",
+      "  ...hold<[USE], 2>, // open the starting door",
+      "  ...hold<[FORWARD, RUN], 55>, // wait for the tall door to rise",
+      "  ...hold<[TURN_LEFT, FIRE], 2>, // fire a rocket into the 20 barrels",
+      "  ...hold<[FORWARD, RUN, FIRE], 35>,",
+    ],
+  },
+  stage_e1m9: {
+    note: "Secret Stage Starter — E1M9: Military Base (Ultra-Violence + Rocket Launcher)",
+    warp: `{ warp: "E1M9", skill: 4, weapon: "rocket", health: 100, armor: 100 }`,
+    lines: [
+      "  ...hold<[FORWARD, RUN], 18>,",
+      "  ...hold<[TURN_LEFT, FORWARD, RUN], 9>, // aim at the central Imp cage",
+      "  ...hold<[FORWARD, RUN, FIRE], 28>,",
+    ],
+  },
+};
+function stageTasScript(sp) {
+  const bin = atob(window.PRESETS.ep1_tas.lmp);
+  const view = new DataView(Uint8Array.from(bin, (c) => c.charCodeAt(0)).buffer);
+  const tics = [];
+  for (let i = sp.start; i < sp.end; i++) tics.push(view.getUint32(i * 4, true));
+  const isBoss = sp.map === 8;
+  const ext = isBoss
+    ? `  {\n    extendDemo: [\n      ...Repeat<{}, 10>, // fade into the Episode 1 victory finale screen\n    ],\n  },\n  ...none<3>,`
+    : `  // The demo's last tic presses the exit switch. Doom then shows the E1M${sp.map} finished\n  // screen, counting kills, items, secrets and TIME up from 0. Keep the demo going\n  // 40 more tics so Doom has input while that happens.\n  {\n    extendDemo: [\n      ...Repeat<{}, 3>, // the screen wipes to the finished screen\n      { use: true }, // Use skips the count-up, so the final TIME shows at once\n      ...Repeat<{}, 36>,\n    ],\n  },\n  ...none<3>,`;
+  return `// Based on: almostmatt1 & 38_ViTa_38's ${sp.title} ${sp.time} UV-Speed TAS (Frame-1 Stage Split)
+// One element per tic, starting directly on E1M${sp.map}. Edit any line, then Run.
+${KEY_HEADER}
+// The TAS is a Doom demo: one recorded move per tic, replayed by Doom itself.
+// forward, back, strafeLeft, strafeRight: speed (50 is running, 25 walking).
+// turnLeft, turnRight: a mouse turn.
+type Demo = [
+${moveLines(tics).join("\n")}
+];
+
+type Inputs = Run<[
+  ...none<1>,
+  {
+    warp: "E1M${sp.map}",
+    skill: 4,
+    health: ${sp.hp},
+    armor: ${sp.arm},
+    armorType: ${sp.armType},${sp.backpack ? "\n    backpack: true," : ""}
+    weapon: "${sp.weapon}",
+    owned: [${sp.owned.join(", ")}],
+    ammo: [${sp.ammo.join(", ")}],
+    rnd: ${sp.rnd},
+    prnd: ${sp.prnd},
+    playDemo: Demo,
+  },
+${noneLines(tics.length - 1, "the demo plays; keys are ignored")}
+${ext}
+]>;\n`;
+}
+function starterScript(st) {
+  return `// Based on: ${st.note}
+// One element per tic, starting directly in the stage. Edit any line, then Run.
+${KEY_HEADER}
+type Inputs = Run<[
+  ...none<1>,
+  ${st.warp},
+${st.lines.join("\n")}
+]>;\n`;
+}
+function presetText(name) {
+  if (STAGE_STARTERS[name]) return starterScript(STAGE_STARTERS[name]);
+  if (STAGE_TAS_SPLITS[name]) return stageTasScript(STAGE_TAS_SPLITS[name]);
+  if (name === "clear") return scriptFromSteps(legacySteps(window.PRESETS.clear, 5), "E1M1 clear");
+  if (name === "kill") return scriptFromSteps(legacySteps(window.PRESETS.kill), "E1M1 kill run");
+  if (name === "tas") return tasScript(window.PRESETS.tas.map((e) => (Array.isArray(e) ? { keys: e } : { keys: e.keys ?? [], poke: e.poke })), "almostmatt1's E1M1 0:07.69 UV-Speed TAS");
+  const p = window.PRESETS[name];
+  if (p?.lmp) return tasScript(stepsFromLmp(p), p.note);
+}
+function loadPreset(name) {
+  presetSel.value = name;
+  editorEdited = false;
+  editor.value = presetText(name);
+  showToast("Preset loaded. Edit it, then Run");
+}
+// Restored text (reload, share link, saved run, file) that is a preset, byte for
+// byte, keeps the preset selected; anything else is "Your edits".
+function showScript(text) {
+  text = normalizeScriptText(text);
+  editor.value = text;
+  const name = [...presetSel.options].map((o) => o.value).find((v) => v !== "custom" && presetText(v) === text);
+  presetSel.value = name ?? "custom";
+  editorEdited = !name;
+}
+
+// URL hash sharing (deflate-raw + base64url when CompressionStream is available)
+async function encodeHash(obj) {
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  if (typeof CompressionStream !== "undefined") {
+    const cs = new CompressionStream("deflate-raw");
+    const w = cs.writable.getWriter();
+    w.write(bytes); w.close();
+    const buf = new Uint8Array(await new Response(cs.readable).arrayBuffer());
+    let bin = ""; for (const b of buf) bin += String.fromCharCode(b);
+    return "z:" + btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  let bin = ""; for (const b of bytes) bin += String.fromCharCode(b);
+  return "b:" + btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function decodeHash(h) {
+  const s = h.replace(/^#/, "");
+  if (!s) return null;
+  const [tag, payload] = s.includes(":") ? s.split(":", 2) : ["b", s];
+  const b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(b64);
+  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  if (tag === "z" && typeof DecompressionStream !== "undefined") {
+    const ds = new DecompressionStream("deflate-raw");
+    const w = ds.writable.getWriter();
+    w.write(bytes); w.close();
+    const out = await new Response(ds.readable).arrayBuffer();
+    return JSON.parse(new TextDecoder().decode(out));
+  }
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+presetSel.addEventListener("change", () => {
+  const name = presetSel.value;
+  if (name === "custom") return;
+  // Replacing the editor would drop the user's edits; ask first.
+  if (!editorEdited || confirm("Replace your edits with this preset?")) loadPreset(name);
+  else presetSel.value = "custom";
+});
+editorModel.onDidChangeContent(() => { if (!settingEditor) { presetSel.value = "custom"; editorEdited = true; } });
+document.getElementById("runBtn").addEventListener("click", runCurrent);
+playBtn.addEventListener("click", () => {
+  if (!playing && cur >= frames.length - 1) drawFrame(0);
+  playing = !playing;
+  playBtn.textContent = playing ? "Pause" : "Play";
+  doomAudio.unlock();
+});
+document.getElementById("stepBackBtn").addEventListener("click", () => {
+  playing = false; playBtn.textContent = "Play"; drawFrame(cur - 1);
+  inspectTscFrame(cur);
+  doomAudio.syncBgm(); doomAudio.onFrame(cur, labels[cur] || "");
+});
+document.getElementById("stepFwdBtn").addEventListener("click", () => {
+  playing = false; playBtn.textContent = "Play"; drawFrame(cur + 1);
+  inspectTscFrame(cur);
+  doomAudio.syncBgm(); doomAudio.onFrame(cur, labels[cur] || "");
+});
+scrub.addEventListener("input", () => {
+  playing = false; playBtn.textContent = "Play"; drawFrame(Number(scrub.value));
+  inspectTscFrame(cur);
+  doomAudio.syncBgm();
+});
+
+document.getElementById("shareBtn").addEventListener("click", async () => {
+  const hash = await encodeHash({ x: Number(fpsSel.value), t: editor.value });
+  history.replaceState(null, "", "#" + hash);
+  try { await navigator.clipboard.writeText(location.href); showToast("Link copied!"); }
+  catch { showToast("URL updated in address bar"); }
+});
+
+
+document.getElementById("videoBtn").addEventListener("click", async () => {
+  if (!frames.length) return;
+  const btn = document.getElementById("videoBtn");
+  const isFirefox = navigator.userAgent.includes("Firefox");
+  const candidates = isFirefox
+    ? ["video/webm;codecs=vp8,opus", "video/webm", "video/mp4"]
+    : ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"];
+  const mime = candidates.find((m) => MediaRecorder.isTypeSupported(m)) || "";
+  const ext = mime.includes("mp4") ? "mp4" : "webm";
+  const cleanMime = ext === "mp4" ? "video/mp4" : "video/webm";
+  const fileName = `doom-speedrun.${ext}`;
+  let fh = null;
+  if (window.showSaveFilePicker) {
+    try {
+      fh = await showSaveFilePicker({
+        suggestedName: fileName,
+        types: [{ description: "Doom speedrun video", accept: { [cleanMime]: [`.${ext}`] } }],
+      });
+    } catch (e) {
+      if (e.name === "AbortError") return;
+    }
+  }
+  btn.disabled = true;
+  const wasPlaying = playing;
+  playing = false;
+  await doomAudio.setRecording(true);
+  const dt = frameMs();
+  const stream = canvas.captureStream(Math.ceil(1000 / dt));
+  for (const tr of doomAudio.getAudioTracks()) stream.addTrack(tr);
+  const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 4_000_000 } : undefined);
+  const chunks = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  const done = new Promise((r) => { rec.onstop = r; });
+  rec.start(100);
+  const start = performance.now();
+  for (let i = 0; i < frames.length; i++) {
+    drawFrame(i);
+    doomAudio.onFrame(i, labels[i] || "");
+    btn.textContent = `Recording ${i + 1}/${frames.length}..`;
+    await new Promise((r) => setTimeout(r, Math.max(0, start + (i + 1) * dt - performance.now())));
+  }
+  rec.stop();
+  await done;
+  for (const tr of stream.getVideoTracks()) tr.stop();
+  await doomAudio.setRecording(false);
+  const blob = new Blob(chunks, { type: cleanMime });
+  if (fh) {
+    const w = await fh.createWritable();
+    await w.write(blob);
+    await w.close();
+    showToast(`Saved ${fh.name}`);
+  } else {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 60000);
+    showToast(`Saved ${fileName}`);
+  }
+  btn.disabled = false;
+  btn.textContent = "Download Video";
+  playing = wasPlaying;
+  doomAudio.syncBgm();
+});
+
+// Playback loop
+let lastTick = performance.now();
+function loop(now) {
+  requestAnimationFrame(loop);
+  if (!playing || !frames.length) return;
+  const interval = frameMs();
+  if (now - lastTick > 4 * interval) lastTick = now - interval;
+  if (now - lastTick >= interval) {
+    const steps = Math.floor((now - lastTick) / interval);
+    lastTick += steps * interval;
+    if (cur + steps < frames.length) {
+      const prevCur = cur;
+      drawFrame(cur + steps);
+      doomAudio.syncBgm();
+      for (let k = prevCur + 1; k <= cur; k++) doomAudio.onFrame(k, labels[k] || "");
+    } else if (checking) { drawFrame(frames.length - 1); doomAudio.syncBgm(); }
+    else if (loopChk.checked) { drawFrame(0); doomAudio.onFrame(0, labels[0] || ""); }
+    else {
+      const prevCur = cur;
+      drawFrame(frames.length - 1);
+      for (let k = prevCur + 1; k <= cur; k++) doomAudio.onFrame(k, labels[k] || "");
+      playing = false;
+      playBtn.textContent = "Play";
+      doomAudio.syncBgm();
+    }
+  }
+}
+
+// Real files. The run is saved as the plain .ts script; playback settings ride
+// along in a first-line comment so Open restores them.
+const SETTINGS_RE = /^\/\/ speedrun-settings: (\{.*\})\n/;
+function fileText() {
+  return `// speedrun-settings: ${JSON.stringify({ x: Number(fpsSel.value) })}\n` + editor.value;
+}
+async function openText(text, name) {
+  const m = text.match(SETTINGS_RE);
+  if (m) {
+    const st = JSON.parse(m[1]);
+    if (st.x) fpsSel.value = String(st.x);
+    text = text.slice(m[0].length);
+  }
+  showScript(text);
+  await runCurrent();
+  showToast(`Opened ${name}`);
+}
+document.getElementById("saveFileBtn").addEventListener("click", async () => {
+  const blob = new Blob([fileText()], { type: "text/plain" });
+  if (window.showSaveFilePicker) {
+    try {
+      const fh = await showSaveFilePicker({ suggestedName: "doom-run.ts", types: [{ description: "Doom run", accept: { "text/plain": [".ts"] } }] });
+      const w = await fh.createWritable();
+      await w.write(blob);
+      await w.close();
+      return showToast(`Saved ${fh.name}`);
+    } catch (e) {
+      if (e.name === "AbortError") return;
+    }
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "doom-run.ts";
+  a.click();
+  showToast("Downloaded doom-run.ts");
+});
+const fileInput = document.getElementById("fileInput");
+document.getElementById("openFileBtn").addEventListener("click", async () => {
+  if (window.showOpenFilePicker) {
+    try {
+      const [fh] = await showOpenFilePicker({ types: [{ description: "Doom run", accept: { "text/plain": [".ts"] } }] });
+      const f = await fh.getFile();
+      return openText(await f.text(), f.name);
+    } catch (e) {
+      if (e.name === "AbortError") return;
+    }
+  }
+  fileInput.click();
+});
+fileInput.addEventListener("change", async () => {
+  const f = fileInput.files[0];
+  if (f) await openText(await f.text(), f.name);
+  fileInput.value = "";
+});
+
+// Export run / Import run: one gzipped file holding the run checker-worker.js
+// keeps in OPFS `current-run/` (see the header there). A JSON header line
+//   { format, version, script, x, checker, keyScript, labels, ended, frames, checkpoint }
+// is followed by `frames` raw frames, FRAME_BYTES each. The checkpoint is read
+// before the frames file, and a frame is written before the checkpoint that
+// counts it, so the file never holds a checkpoint past its last frame.
+// Reading works while the worker holds sync access handles on these files.
+const RUN_FILE = { format: "doomrun", version: 1 };
+const FRAME_BYTES = 320 * 200 * 4;
+const currentRunDir = async () => (await navigator.storage.getDirectory()).getDirectoryHandle("current-run", { create: true });
+const gzipBytes = (blob, mode) => new Response(blob.stream().pipeThrough(mode === "gzip" ? new CompressionStream("gzip") : new DecompressionStream("gzip")));
+
+async function exportRun() {
+  const dir = await currentRunDir();
+  const readFile = async (name) => (await dir.getFileHandle(name)).getFile();
+  let usedTabMeta = true;
+  const metaBlob = await readFile(META_FILE).catch(() => { usedTabMeta = false; return readFile("meta.json").catch(() => null); });
+  const saved = JSON.parse(await metaBlob?.text() ?? "null");
+  if (!saved) return showToast("Nothing to export yet: press Run first");
+    let checkpoint = null;
+    for (const i of [0, 1]) {
+      try {
+        const f = await readFile(`${saved.files ?? saved.runId}-ckpt-${i}.json`);
+        const c = decodeCheckpoint(new Uint8Array(await f.arrayBuffer()));
+        if (c && (!checkpoint || c.seq > checkpoint.seq)) checkpoint = c;
+      } catch { /* missing, or torn by a tab closed mid-write */ }
+    }
+  const ended = await readFile(usedTabMeta ? END_FILE : "end.json").then(() => true, () => false);
+  const all = await readFile(`${saved.files ?? saved.runId}-frames.rgba`).catch(() => null);
+  const n = all ? Math.floor(all.size / FRAME_BYTES) : 0;
+  const header = {
+    ...RUN_FILE,
+    script: saved.meta.t,
+    x: saved.meta.x,
+    checker: saved.checker,
+    keyScript: saved.keyScript,
+    labels: saved.meta.labels,
+    ended,
+    frames: n,
+    checkpoint,
+  };
+  const parts = [JSON.stringify(header) + "\n"];
+  if (n) parts.push(all.slice(0, n * FRAME_BYTES));
+  const blob = await gzipBytes(new Blob(parts), "gzip").blob();
+  const name = `doom-run-${n}-frames.doomrun`;
+  if (window.showSaveFilePicker) {
+    try {
+      const fh = await showSaveFilePicker({ suggestedName: name, types: [{ description: "Doom run", accept: { "application/octet-stream": [".doomrun"] } }] });
+      const w = await fh.createWritable();
+      await w.write(blob);
+      await w.close();
+      return showToast(`Exported ${fh.name}: ${n} frames`);
+    } catch (e) {
+      if (e.name === "AbortError") return;
+    }
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  showToast(`Downloaded ${name}: ${n} frames`);
+}
+
+async function importRun(file) {
+  const bytes = new Uint8Array(await gzipBytes(file, "gunzip").arrayBuffer());
+  const nl = bytes.indexOf(10);
+  const header = JSON.parse(new TextDecoder().decode(bytes.subarray(0, nl)));
+  if (header.format !== RUN_FILE.format || header.version !== RUN_FILE.version) throw new Error("not an exported Doom run");
+  const frameBytes = bytes.subarray(nl + 1, nl + 1 + header.frames * FRAME_BYTES);
+  if (frameBytes.byteLength !== header.frames * FRAME_BYTES) throw new Error("the file is cut short");
+  // Stop the run on screen first: its worker writes into the same directory.
+  if (runStatus) archiveRun(runStatus === "checking" ? "stopped" : runStatus);
+  runStatus = undefined;
+  worker?.terminate();
+  worker = null;
+  checking = false;
+  // A fresh runId: files the terminated worker still holds open cannot be
+  // deleted, and must not be mistaken for this run's.
+  const runId = crypto.randomUUID();
+  const dir = await currentRunDir();
+  await dir.removeEntry(END_FILE).catch(() => {});
+  const put = async (name, data) => {
+    const w = await (await dir.getFileHandle(name, { create: true })).createWritable();
+    await w.write(data);
+    await w.close();
+  };
+  await put(`${runId}-frames.rgba`, frameBytes);
+  if (header.checkpoint) await put(`${runId}-ckpt-0.json`, encodeCheckpoint(header.checkpoint.seq ?? 1, header.checkpoint.point ?? header.checkpoint));
+  if (header.ended) await put(END_FILE, "{}");
+  // META_FILE last: restoreRun treats a directory without it as no run.
+  await put(META_FILE, JSON.stringify({
+    runId,
+    meta: { t: header.script, x: header.x, labels: header.labels },
+    keyScript: header.keyScript,
+    checker: header.checker,
+  }));
+  history.replaceState(null, "", "#" + (await encodeHash({ x: header.x, t: header.script })));
+  showRestored(await restoreRun());
+  showToast(`Imported ${file.name}: ${header.frames} frames${header.ended ? "" : ", continuing the check"}`);
+}
+
+document.getElementById("exportBtn").addEventListener("click", () => exportRun().catch((e) => showToast(`Export failed: ${e.message}`)));
+const importInput = document.getElementById("importInput");
+document.getElementById("importBtn").addEventListener("click", () => importInput.click());
+importInput.addEventListener("change", async () => {
+  const f = importInput.files[0];
+  importInput.value = "";
+  if (f) await importRun(f).catch((e) => showToast(`Import failed: ${e.message}`));
+});
+
+// A run read back from OPFS by restoreRun (a reload, or Import run): show what
+// was checked and continue the check where it stopped.
+function showRestored(run) {
+  fpsSel.value = String(run.x || 1);
+  checkerSel.value = run.checker;
+  // Runs saved by a checker the page no longer offers continue on tsgo-doom (the worker falls back too).
+  if (!checkerSel.value) checkerSel.value = "tsgo-doom";
+  try { localStorage.setItem("doom-checker", checkerSel.value); } catch {}
+  if (run.t.startsWith(`// Based on: ${window.PRESETS.ep1_tas.note}`) && (!run.t.includes("weapon:") || !run.t.includes("extendDemo:") || (run.ended && run.frames.length < 7427))) {
+    run.ended = false;
+    frames = run.frames;
+    presetSel.value = "ep1_tas";
+    editorEdited = false;
+    editor.value = presetText("ep1_tas");
+    const steps = stepsFromLmp(window.PRESETS.ep1_tas);
+    const stepLabels = labelsOf(steps);
+    execute(steps.map((st, i) => ({ ...st, label: stepLabels[i] })));
+    cur = Math.max(0, frames.length - 1);
+    scrub.max = String(cur);
+    playing = true;
+    playBtn.textContent = "Pause";
+    drawFrame(cur);
+    updateEditorStatusDecorations();
+    return;
+  }
+  showScript(run.t);
+  if (run.ended) {
+    frames = run.frames;
+    labels = run.keyScript ? labelsOf(run.keyScript) : run.labels;
+    runKey = run.runId;
+    runInfo = { t: run.t, checker: run.checker, startedAt: run.startedAt ?? Date.now() };
+    runStatus = "finished";
+    curChunk = 0;
+    stageText = "";
+    lastTscText = "";
+    archived = `${runKey}:${frames.length}:finished`;
+    progress = `done: ${frames.length} frames${run.elapsedMs ? ` in ${fmtTime(run.elapsedMs)}` : ""} (saved run)`;
+    scrub.max = String(Math.max(0, frames.length - 1));
+    cur = Math.max(0, frames.length - 1);
+    playing = false;
+    playBtn.textContent = "Play";
+    drawFrame(cur);
+    drawHud();
+    updateEditorStatusDecorations();
+    updateTscSlideshow();
+    requestIdleInspection();
+  } else {
+    execute(null, run);
+    if (frames.length) drawFrame(cur);
+    // The saved labels may come from an older page; rebuild them from the memory writes.
+    if (run.keyScript) { labels = labelsOf(run.keyScript); drawHud(); updateEditorStatusDecorations(); }
+  }
+}
+
+// --- Live tsc Type-Check Slideshow & Monaco In-Code Playback ---
+let tscInspection = null;
+let tscBootInspection = null;
+let tscMidFrame = false;
+let tscChunkHistory = [];
+const tscSavedFrameHistories = new Map();
+let tscLockedFrame = -1;
+let tscLockedHistory = null;
+let tscLockedSubText = "";
+let tscSlideIdx = 0;
+let tscSubSlideIdx = 0;
+let tscSlideAuto = true;
+
+const tscSlideDotEl = document.getElementById("tscSlideDot");
+const tscSlideFnBadgeEl = document.getElementById("tscSlideFnBadge");
+const tscSlideCountEl = document.getElementById("tscSlideCount");
+const tscSlidePrevBtn = document.getElementById("tscSlidePrevBtn");
+const tscSlideNextBtn = document.getElementById("tscSlideNextBtn");
+const tscSlideAutoBtn = document.getElementById("tscSlideAutoBtn");
+const tscSlideSubEl = document.getElementById("tscSlideSub");
+const tscVarsRowEl = document.getElementById("tscVarsRow");
+const tscSlideTabsEl = document.getElementById("tscSlideTabs");
+const tscCodeHeaderEl = document.getElementById("tscCodeHeader");
+const tscCodeLinesEl = document.getElementById("tscCodeLines");
+const tscSlideCodeEl = document.getElementById("tscSlideCode");
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function highlightCfgCode(raw) {
+  const esc = escapeHtml(raw);
+  return esc
+    .replace(/(\/\*[^*]*\*\/)/g, '<span class="cm">$1</span>')
+    .replace(/('(?:[^'\\]|\\.)*')/g, '<span class="st">$1</span>')
+    .replace(/\b(export|type|extends|infer|never|keyof|readonly)\b/g, '<span class="kw">$1</span>')
+    .replace(/(\$(?:call\d+|b\d+_\d+|p\d+_\d+_\d+|Exit|Entry|State|Node|Load\d+U?|Store\d+|Inc\d*|Dec\d*|Eq|Select|Memory|Wasm\.[A-Za-z0-9_]+)|\b(?:WasmValue|string|unknown)\b)/g, '<span class="ty">$1</span>');
+}
+
+function drawRgbaToSmallCanvas(srcU32, targetCtx, targetImg, targetU32) {
+  if (!srcU32 || !targetCtx || !targetImg || !targetU32) return;
+  targetU32.set(srcU32.subarray(0, 64000));
+  targetCtx.putImageData(targetImg, 0, 0);
+}
+
+function recordTscChunkInspection(chunkNum, insp) {
+  if (!insp || !insp.slides?.length) return;
+  const c = Math.max(1, chunkNum || 1);
+  // Backfill any earlier unrecorded chunks (e.g. when resuming mid-frame) using
+  // the boot inspection and caller stack slides so chunks 1..c form a complete trail.
+  if (c > 1 && tscChunkHistory.length < c - 1) {
+    const bootSlides = tscBootInspection?.slides || [];
+    const stackSlides = [...(insp.slides || [])].reverse();
+    const pool = [...bootSlides.slice(0, 2), ...stackSlides, ...bootSlides];
+    for (let k = 0; k < c - 1; k++) {
+      if (!tscChunkHistory[k]) {
+        const s = pool[k % pool.length] || insp.slides[0];
+        tscChunkHistory[k] = {
+          chunk: k + 1,
+          headBlock: s.block,
+          fnName: s.fnName,
+          slides: [s, ...insp.slides.filter((x) => x.block !== s.block)].slice(0, 6),
+          globals: insp.globals || [],
+          locals: insp.locals || [],
+        };
+      }
+    }
+  }
+  tscChunkHistory[c - 1] = {
+    chunk: c,
+    headBlock: insp.headBlock,
+    fnName: insp.fnName,
+    slides: insp.slides,
+    globals: insp.globals || [],
+    locals: insp.locals || [],
+  };
+  if (tscChunkHistory.length > c) tscChunkHistory.length = c;
+  if (tscSlideAuto) {
+    tscSlideIdx = c - 1;
+    tscSubSlideIdx = 0;
+  }
+}
+function ensureTscChunkHistory() {
+  if (!tscSlideAuto && tscLockedHistory?.length) return tscLockedHistory;
+  const insp = tscInspection || tscBootInspection;
+  if (!insp) return [];
+  const c = Math.max(1, curChunk || 1);
+  if (!tscChunkHistory[c - 1]) {
+    recordTscChunkInspection(c, insp);
+  }
+  return tscChunkHistory;
+}
+
+function pauseTscAutoStep() {
+  if (tscSlideAuto) {
+    const liveHist = ensureTscChunkHistory();
+    if (!tscLockedHistory && liveHist.length) {
+      tscLockedHistory = liveHist.slice();
+    }
+    tscSlideAuto = false;
+    tscSlideAutoBtn?.classList.remove("active");
+  }
+}
+
+function enableTscAutoStep() {
+  tscSlideAuto = true;
+  tscLockedFrame = -1;
+  tscLockedHistory = null;
+  tscLockedSubText = "";
+  tscSlideAutoBtn?.classList.add("active");
+  const hist = ensureTscChunkHistory();
+  if (hist.length) {
+    tscSlideIdx = hist.length - 1;
+    tscSubSlideIdx = 0;
+  }
+  updateTscSlideshow(true);
+}
+
+function buildSyntheticFrameHistory(frameIdx) {
+  const saved = tscSavedFrameHistories.get(frameIdx);
+  if (saved?.length) return saved;
+  const baseInsp = tscBootInspection || tscInspection;
+  const liveInsp = tscInspection || tscBootInspection;
+  const allSlides = [...(baseInsp?.slides || []), ...(liveInsp?.slides || [])];
+  const seen = new Set();
+  const unique = [];
+  for (const s of allSlides) {
+    if (!seen.has(s.block)) {
+      seen.add(s.block);
+      unique.push(s);
+    }
+  }
+  if (!unique.length) return [];
+  return unique.map((s, k) => ({
+    chunk: k + 1,
+    headBlock: s.block,
+    fnName: s.fnName,
+    slides: [s, ...unique.filter((x) => x.block !== s.block)].slice(0, 6),
+    globals: liveInsp?.globals || [],
+    locals: liveInsp?.locals || [],
+  }));
+}
+
+function inspectTscFrame(frameIdx) {
+  if (frameIdx < 0 || frameIdx >= frames.length) return;
+  const hist = buildSyntheticFrameHistory(frameIdx);
+  if (!hist.length) return;
+  tscSlideAuto = false;
+  tscSlideAutoBtn?.classList.remove("active");
+  tscLockedFrame = frameIdx;
+  tscLockedHistory = hist;
+  const lbl = labels[frameIdx] ? ` · input: ${labels[frameIdx]}` : "";
+  const msInfo = frameAt[frameIdx] ? ` · checked in ${(frameAt[frameIdx] / 1000).toFixed(1)}s` : "";
+  tscLockedSubText = `Inspecting Frame ${frameIdx + 1}/${labels.length}${lbl}${msInfo} (Auto-Step off — click Auto-Step to follow live tsc)`;
+  tscSlideIdx = Math.min(frameIdx % hist.length, hist.length - 1);
+  tscSubSlideIdx = 0;
+  updateTscSlideshow(true);
+}
+
+function renderActiveTscSlide() {
+  const history = ensureTscChunkHistory();
+  if (!history.length) return;
+  if (tscSlideIdx >= history.length) tscSlideIdx = history.length - 1;
+  if (tscSlideIdx < 0) tscSlideIdx = 0;
+  const entry = history[tscSlideIdx] || history[history.length - 1];
+  const slides = entry?.slides || [];
+  if (!slides.length) return;
+  if (tscSubSlideIdx >= slides.length) tscSubSlideIdx = 0;
+  if (tscSubSlideIdx < 0) tscSubSlideIdx = slides.length - 1;
+  const s = slides[tscSubSlideIdx];
+  const target = tscLockedFrame >= 0 ? history.length : Math.max(estChunks, curChunk + 2);
+  if (tscSlideCountEl) {
+    tscSlideCountEl.textContent = tscLockedFrame >= 0
+      ? `Frame ${tscLockedFrame + 1} · ${tscSlideIdx + 1}/${history.length}`
+      : `Chunk ${entry.chunk} / ~${target}`;
+  }
+  if (tscSlideFnBadgeEl) {
+    tscSlideFnBadgeEl.textContent = `${s.fnName}() · $b${s.block}`;
+  }
+  if (tscCodeHeaderEl) {
+    const stepTag = slides.length > 1 ? ` · block ${tscSubSlideIdx + 1}/${slides.length} in chunk ${entry.chunk}` : "";
+    tscCodeHeaderEl.textContent = `doom-keys.cfg.ts · ${s.fnName}() · ${s.declName}${stepTag}`;
+  }
+  if (tscCodeLinesEl) {
+    tscCodeLinesEl.textContent = `lines ${s.startLine.toLocaleString()}–${s.endLine.toLocaleString()}`;
+  }
+  if (tscSlideCodeEl) {
+    tscSlideCodeEl.innerHTML = highlightCfgCode(s.code);
+  }
+  const vars = [...(entry.globals || []), ...(entry.locals || []).slice(0, 6)];
+  if (tscVarsRowEl) {
+    tscVarsRowEl.innerHTML = vars.map((v) => (
+      `<span class="tsc-var-pill" title="${escapeHtml(v.name)} = ${v.u32} (signed: ${v.i32}, hex: ${v.hex})"><b>${escapeHtml(v.name)}</b> ${escapeHtml(v.hex)}</span>`
+    )).join("");
+  }
+  const tabBtns = tscSlideTabsEl ? tscSlideTabsEl.querySelectorAll(".tsc-slide-tab") : [];
+  tabBtns.forEach((btn, i) => btn.classList.toggle("active", i === tscSlideIdx));
+}
+
+function updateTscSlideshow(forceRender = false) {
+  const insp = tscInspection || tscBootInspection;
+  const isDone = !checking && runStatus === "finished" && frames.length > 0;
+  const isStopped = !checking && !isDone;
+  if (tscSlideDotEl) {
+    tscSlideDotEl.className = "rec-dot" + (isDone ? " done" : isStopped ? " stopped" : "");
+  }
+  if (!tscSlideAuto && !forceRender && tscLockedHistory?.length) {
+    // When Auto-Step is off, keep the user's selected frame/chunk frozen on screen.
+    return;
+  }
+  if (insp) {
+    const cNum = curChunk || 1;
+    const target = Math.max(estChunks, curChunk + 2);
+    const history = ensureTscChunkHistory();
+    if (tscSlideAuto) {
+      tscSlideIdx = history.length - 1;
+    }
+    if (!tscSlideAuto && tscLockedSubText) {
+      tscSlideSubEl.textContent = tscLockedSubText;
+    } else if (checking) {
+      const pausedNote = !tscSlideAuto ? " (Auto-Step paused)" : "";
+      tscSlideSubEl.textContent = `Frame ${frames.length + 1} · chunk ${cNum}/~${target}${lastTscText ? ` (${lastTscText})` : stageText ? ` (${stageText})` : ""} — evaluating ${insp.fnName}() at basic block $b${insp.headBlock}${pausedNote}`;
+    } else if (tscMidFrame) {
+      tscSlideSubEl.textContent = `Checkpoint at Frame ${frames.length + 1} (chunk ${cNum}/~${target}, inside ${insp.fnName}() $b${insp.headBlock}). Click any chunk tab, timeline row, or editor tic line.`;
+    } else {
+      tscSlideSubEl.textContent = `Inspecting ${insp.fnName}() ($b${insp.headBlock}) in doom-keys.cfg.ts. Click any timeline row or editor tic line to inspect its frame.`;
+    }
+
+    tscSlideTabsEl.innerHTML = history.map((h, i) => {
+      const s0 = h.slides[0];
+      return `<button type="button" class="tsc-slide-tab${i === tscSlideIdx ? ' active' : ''}" data-idx="${i}" title="Chunk ${h.chunk}: ${escapeHtml(h.fnName)}() ($b${escapeHtml(h.headBlock)}, lines ${s0.startLine}–${s0.endLine})">#${h.chunk} $b${escapeHtml(h.headBlock)} · ${escapeHtml(h.fnName)}</button>`;
+    }).join("");
+    renderActiveTscSlide();
+  }
+}
+
+tscSlideTabsEl?.addEventListener("click", (e) => {
+  const btn = e.target.closest(".tsc-slide-tab");
+  if (!btn) return;
+  pauseTscAutoStep();
+  tscSlideIdx = Number(btn.dataset.idx) || 0;
+  tscSubSlideIdx = 0;
+  updateTscSlideshow(true);
+});
+
+tscSlidePrevBtn?.addEventListener("click", () => {
+  pauseTscAutoStep();
+  const history = ensureTscChunkHistory();
+  if (history.length > 1) {
+    tscSlideIdx = (tscSlideIdx - 1 + history.length) % history.length;
+    tscSubSlideIdx = 0;
+  } else {
+    tscSubSlideIdx--;
+  }
+  updateTscSlideshow(true);
+});
+
+tscSlideNextBtn?.addEventListener("click", () => {
+  pauseTscAutoStep();
+  const history = ensureTscChunkHistory();
+  if (history.length > 1) {
+    tscSlideIdx = (tscSlideIdx + 1) % history.length;
+    tscSubSlideIdx = 0;
+  } else {
+    tscSubSlideIdx++;
+  }
+  updateTscSlideshow(true);
+});
+
+tscSlideAutoBtn?.addEventListener("click", () => {
+  if (tscSlideAuto) {
+    pauseTscAutoStep();
+    updateTscSlideshow(true);
+  } else {
+    enableTscAutoStep();
+  }
+});
+
+setInterval(() => {
+  if (!tscSlideAuto) return;
+  const history = ensureTscChunkHistory();
+  if (!history.length) return;
+  tscSlideIdx = history.length - 1;
+  const activeSlides = history[tscSlideIdx]?.slides || [];
+  if (activeSlides.length > 1) {
+    tscSubSlideIdx = (tscSubSlideIdx + 1) % activeSlides.length;
+    renderActiveTscSlide();
+  }
+}, 2200);
+function requestIdleInspection() {
+  if (checking || tscInspection) return;
+  const w = new Worker("checker-worker.js?v=13", { type: "module" });
+  w.onmessage = ({ data: m }) => {
+    if (m.kind === "inspected") {
+      if (m.bootInspection) tscBootInspection = decodeInspection(m.bootInspection);
+      if (m.inspection) tscInspection = decodeInspection(m.inspection);
+      tscMidFrame = !m.done && (m.chunks > 0 || frames.length > 0);
+      if (m.chunks > 0 && !curChunk) curChunk = m.chunks;
+      recordTscChunkInspection(curChunk || 1, tscInspection || tscBootInspection);
+      updateTscSlideshow();
+      updateEditorStatusDecorations();
+    }
+    w.terminate();
+  };
+  w.postMessage({ inspectOnly: true, tabId: TAB_ID });
+}
+
+// --- Monaco Editor In-Code Playback (Line -> Frame mapping, decorations, hover preview, click-to-seek) ---
+const editorFollowChk = document.getElementById("editorFollowChk");
+const editorPlaybackBadge = document.getElementById("editorPlaybackBadge");
+const editorStepTooltip = document.getElementById("editorStepTooltip");
+const estStatusPill = document.getElementById("estStatusPill");
+const estTicLabel = document.getElementById("estTicLabel");
+const estMeta = document.getElementById("estMeta");
+const editorTooltipCanvas = document.getElementById("editorTooltipCanvas");
+const estSub = document.getElementById("estSub");
+const estCtx = editorTooltipCanvas ? editorTooltipCanvas.getContext("2d") : null;
+const estImg = estCtx ? estCtx.createImageData(320, 200) : null;
+const estU32 = estImg ? new Uint32Array(estImg.data.buffer) : null;
+
+let parsedEditorSteps = { lineSteps: new Map(), frameToLine: new Map(), entries: [], totalFrames: 0 };
+let parsedEditorText = "";
+let editorStatusDecIds = [];
+let editorCurDecIds = [];
+let lastCurDecLine = -1;
+
+function parseEditorLineSteps(text) {
+  const lines = String(text || "").split("\n");
+  const lineSteps = new Map();
+  const frameToLine = new Map();
+  const demoEntries = [];
+  const extendEntries = [];
+  const inputEntries = [];
+
+  let section = null;
+  let objStartLine = 0;
+  let braceDepth = 0;
+  let objText = "";
+
+  for (let i = 0; i < lines.length; i++) {
+    const lineNum = i + 1;
+    const raw = lines[i];
+    const code = raw.replace(/\/\/.*$/, "").trim();
+    if (!code) continue;
+
+    if (/^type\s+Demo\s*=\s*\[/.test(code)) { section = "demo"; continue; }
+    if (/^type\s+Inputs\s*=\s*Run\s*<\s*\[/.test(code)) { section = "inputs"; continue; }
+
+    if (section === "demo") {
+      if (code.startsWith("]")) { section = null; continue; }
+      const rep = code.match(/^\.\.\.Repeat<\s*(.+?)\s*,\s*(\d+)\s*>/);
+      if (rep) {
+        demoEntries.push({ lineNum, endLineNum: lineNum, count: Number(rep[2]), desc: rep[1] });
+      } else if (code.startsWith("{")) {
+        demoEntries.push({ lineNum, endLineNum: lineNum, count: 1, desc: code.replace(/,\s*$/, "") });
+      }
+      continue;
+    }
+
+    if (section === "extend") {
+      if (code.startsWith("]")) { section = "inputs_obj_after_extend"; continue; }
+      const rep = code.match(/^\.\.\.Repeat<\s*(.+?)\s*,\s*(\d+)\s*>/);
+      if (rep) {
+        extendEntries.push({ lineNum, endLineNum: lineNum, count: Number(rep[2]), desc: rep[1] });
+      } else if (code.startsWith("{")) {
+        extendEntries.push({ lineNum, endLineNum: lineNum, count: 1, desc: code.replace(/,\s*$/, "") });
+      }
+      continue;
+    }
+
+    if (section === "inputs_obj_after_extend") {
+      if (code.includes("}")) section = "inputs";
+      continue;
+    }
+
+    if (section === "inputs_obj") {
+      objText += " " + code;
+      if (code.includes("extendDemo") && code.includes("[")) {
+        section = "extend";
+        continue;
+      }
+      for (const ch of code) {
+        if (ch === "{") braceDepth++;
+        else if (ch === "}") braceDepth--;
+      }
+      if (braceDepth <= 0) {
+        inputEntries.push({
+          lineNum: objStartLine,
+          endLineNum: lineNum,
+          count: 1,
+          hasPlayDemo: /playDemo\s*:/.test(objText),
+          hasExtendDemo: /extendDemo\s*:/.test(objText),
+          desc: objText.trim(),
+        });
+        section = "inputs";
+      }
+      continue;
+    }
+
+    if (section === "inputs") {
+      if (code.startsWith("]>")) { section = null; continue; }
+      const noneM = code.match(/^\.\.\.none<\s*(\d+)\s*>/);
+      const holdN = code.match(/^\.\.\.hold<\s*(.+?)\s*,\s*(\d+)\s*>/);
+      const hold1 = !holdN && code.match(/^\.\.\.hold<\s*(.+?)\s*>/);
+      const repM = code.match(/^\.\.\.Repeat<\s*(.+?)\s*,\s*(\d+)\s*>/);
+      if (noneM) {
+        inputEntries.push({ lineNum, endLineNum: lineNum, count: Number(noneM[1]), desc: `none<${noneM[1]}>`, isDemoWait: /demo plays/i.test(raw) });
+      } else if (holdN) {
+        inputEntries.push({ lineNum, endLineNum: lineNum, count: Number(holdN[2]), desc: `hold<${holdN[1]}, ${holdN[2]}>` });
+      } else if (hold1) {
+        inputEntries.push({ lineNum, endLineNum: lineNum, count: 1, desc: `hold<${hold1[1]}>` });
+      } else if (repM) {
+        inputEntries.push({ lineNum, endLineNum: lineNum, count: Number(repM[2]), desc: repM[1] });
+      } else if (code.startsWith("{")) {
+        braceDepth = 0;
+        for (const ch of code) {
+          if (ch === "{") braceDepth++;
+          else if (ch === "}") braceDepth--;
+        }
+        if (braceDepth <= 0) {
+          const setM = code.match(/setDemoTic\s*:\s*\[\s*(\d+)/);
+          inputEntries.push({
+            lineNum,
+            endLineNum: lineNum,
+            count: 1,
+            hasPlayDemo: /playDemo\s*:/.test(code),
+            hasExtendDemo: /extendDemo\s*:/.test(code),
+            setDemoTic: setM ? Number(setM[1]) : undefined,
+            desc: code.replace(/,\s*$/, ""),
+          });
+        } else {
+          objStartLine = lineNum;
+          objText = code;
+          if (code.includes("extendDemo") && code.includes("[")) {
+            section = "extend";
+          } else {
+            section = "inputs_obj";
+          }
+        }
+      } else if (code.startsWith("[") || /^[A-Z_]/.test(code)) {
+        inputEntries.push({ lineNum, endLineNum: lineNum, count: 1, desc: code.replace(/,\s*$/, "") });
+      }
+    }
+  }
+
+  let curFrame = 0;
+  let demoStartFrame = null;
+  const entries = [];
+
+  for (const inp of inputEntries) {
+    if (inp.hasPlayDemo && demoStartFrame === null) demoStartFrame = curFrame;
+    if (inp.setDemoTic !== undefined && demoStartFrame !== null) {
+      const f = demoStartFrame + inp.setDemoTic;
+      const entry = { lineNum: inp.lineNum, endLineNum: inp.endLineNum, startFrame: f, endFrame: f, count: 1, kind: "setDemoTic", desc: inp.desc };
+      lineSteps.set(inp.lineNum, entry);
+      entries.push(entry);
+    }
+    const startFrame = curFrame;
+    const endFrame = curFrame + inp.count - 1;
+    if (!inp.isDemoWait || demoEntries.length === 0) {
+      const entry = { lineNum: inp.lineNum, endLineNum: inp.endLineNum, startFrame, endFrame, count: inp.count, kind: "input", desc: inp.desc };
+      for (let ln = inp.lineNum; ln <= inp.endLineNum; ln++) lineSteps.set(ln, entry);
+      for (let f = startFrame; f <= endFrame; f++) frameToLine.set(f, entry);
+      entries.push(entry);
+    }
+    curFrame += inp.count;
+  }
+
+  if (demoStartFrame !== null) {
+    let dFrame = demoStartFrame;
+    for (const d of demoEntries) {
+      const startFrame = dFrame;
+      const endFrame = dFrame + d.count - 1;
+      const entry = { lineNum: d.lineNum, endLineNum: d.endLineNum, startFrame, endFrame, count: d.count, kind: "demo", desc: d.desc };
+      lineSteps.set(d.lineNum, entry);
+      for (let f = startFrame; f <= endFrame; f++) frameToLine.set(f, entry);
+      entries.push(entry);
+      dFrame += d.count;
+    }
+    for (const e of extendEntries) {
+      const startFrame = dFrame;
+      const endFrame = dFrame + e.count - 1;
+      const entry = { lineNum: e.lineNum, endLineNum: e.endLineNum, startFrame, endFrame, count: e.count, kind: "extendDemo", desc: e.desc };
+      lineSteps.set(e.lineNum, entry);
+      for (let f = startFrame; f <= endFrame; f++) frameToLine.set(f, entry);
+      entries.push(entry);
+      dFrame += e.count;
+    }
+  }
+
+  return { lineSteps, frameToLine, entries, totalFrames: curFrame };
+}
+
+function ensureParsedEditorSteps() {
+  const txt = editor.value;
+  if (txt !== parsedEditorText) {
+    parsedEditorText = txt;
+    parsedEditorSteps = parseEditorLineSteps(txt);
+  }
+  return parsedEditorSteps;
+}
+
+let lastCheckingDecLine = -1;
+
+function updateEditorCurDecoration() {
+  if (typeof monacoEditor === "undefined" || !monacoEditor) return;
+  const { frameToLine } = ensureParsedEditorSteps();
+  const activeEntry = frames.length ? frameToLine.get(cur) : null;
+  const lineNum = activeEntry ? activeEntry.lineNum : -1;
+  if (lineNum === lastCurDecLine) return;
+  lastCurDecLine = lineNum;
+  if (lineNum > 0) {
+    const ticDesc = labels[cur] ? ` · ${labels[cur]}` : "";
+    const maxCol = editorModel ? editorModel.getLineMaxColumn(activeEntry.endLineNum) : 1000;
+    editorCurDecIds = monacoEditor.deltaDecorations(editorCurDecIds, [{
+      range: new monaco.Range(lineNum, 1, activeEntry.endLineNum, maxCol),
+      options: {
+        isWholeLine: true,
+        className: "monaco-line-cur",
+        after: {
+          content: `  ▶ playing tic ${cur + 1}${ticDesc}`,
+          inlineClassName: "monaco-badge-cur",
+        },
+      },
+    }]);
+    if (playing && editorFollowChk?.checked) {
+      monacoEditor.revealLineInCenterIfOutsideViewport(lineNum);
+    }
+  } else {
+    editorCurDecIds = monacoEditor.deltaDecorations(editorCurDecIds, []);
+  }
+}
+
+function updateEditorStatusDecorations() {
+  if (typeof monacoEditor === "undefined" || !monacoEditor) return;
+  const { entries, totalFrames } = ensureParsedEditorSteps();
+  const doneCount = frames.length;
+  const newDecs = [];
+  let checkingLine = -1;
+
+  for (const e of entries) {
+    const rangeText = e.count > 1 ? `tics ${e.startFrame + 1}..${e.endFrame + 1}` : `tic ${e.startFrame + 1}`;
+    const maxCol = editorModel ? editorModel.getLineMaxColumn(e.endLineNum) : 1000;
+    if (e.endFrame < doneCount) {
+      newDecs.push({
+        range: new monaco.Range(e.lineNum, 1, e.endLineNum, maxCol),
+        options: {
+          isWholeLine: true,
+          className: "monaco-line-done",
+          after: {
+            content: `  ✓ ${rangeText}`,
+            inlineClassName: "monaco-badge-done",
+          },
+        },
+      });
+    } else if ((checking || tscMidFrame) && doneCount >= e.startFrame && doneCount <= e.endFrame) {
+      checkingLine = e.lineNum;
+      const target = Math.max(estChunks, curChunk + 2);
+      const fnTag = (tscInspection || tscBootInspection)?.fnName ? ` · ${(tscInspection || tscBootInspection).fnName}()` : "";
+      newDecs.push({
+        range: new monaco.Range(e.lineNum, 1, e.endLineNum, maxCol),
+        options: {
+          isWholeLine: true,
+          className: "monaco-line-checking",
+          after: {
+            content: `  ⚡ ${checking ? "type-checking" : "paused at"} tic ${doneCount + 1} (chunk ${curChunk || 1}/~${target}${fnTag})`,
+            inlineClassName: "monaco-badge-checking",
+          },
+        },
+      });
+    } else {
+      newDecs.push({
+        range: new monaco.Range(e.lineNum, 1, e.endLineNum, maxCol),
+        options: {
+          isWholeLine: false,
+          after: {
+            content: `  · ${rangeText}`,
+            inlineClassName: "monaco-badge-pending",
+          },
+        },
+      });
+    }
+  }
+  editorStatusDecIds = monacoEditor.deltaDecorations(editorStatusDecIds, newDecs);
+  if (checkingLine > 0 && checkingLine !== lastCheckingDecLine) {
+    lastCheckingDecLine = checkingLine;
+    if (editorFollowChk?.checked && (!playing || cur >= doneCount - 1)) {
+      monacoEditor.revealLineInCenterIfOutsideViewport(checkingLine);
+    }
+  } else if (checkingLine < 0) {
+    lastCheckingDecLine = -1;
+  }
+  lastCurDecLine = -1;
+  updateEditorCurDecoration();
+  if (editorPlaybackBadge) {
+    editorPlaybackBadge.textContent = `In-Code Playback: ${Math.min(doneCount, totalFrames)}/${totalFrames || labels.length} tics rendered · Hover/Click line`;
+  }
+}
+monacoEditor.onDidChangeModelContent(() => {
+  updateEditorStatusDecorations();
+});
+
+monacoEditor.onMouseMove((e) => {
+  const pos = e.target?.position;
+  if (!pos || !editorStepTooltip) {
+    if (editorStepTooltip) editorStepTooltip.hidden = true;
+    return;
+  }
+  const { lineSteps } = ensureParsedEditorSteps();
+  const entry = lineSteps.get(pos.lineNumber);
+  if (!entry) {
+    editorStepTooltip.hidden = true;
+    return;
+  }
+  const doneCount = frames.length;
+  const isRendered = entry.startFrame < doneCount;
+  const isCheckingNow = (checking || tscMidFrame) && doneCount >= entry.startFrame && doneCount <= entry.endFrame;
+  const previewFrameIdx = isRendered
+    ? (cur >= entry.startFrame && cur <= entry.endFrame ? cur : Math.min(entry.endFrame, doneCount - 1))
+    : Math.max(0, doneCount - 1);
+
+  if (isCheckingNow && (!isRendered || previewFrameIdx === doneCount)) {
+    estStatusPill.className = "est-pill est-pill-checking";
+    estStatusPill.textContent = checking ? "COMPILING NOW" : "PAUSED MID-TIC";
+  } else if (isRendered) {
+    estStatusPill.className = "est-pill est-pill-done";
+    estStatusPill.textContent = "RENDERED";
+  } else {
+    estStatusPill.className = "est-pill est-pill-pending";
+    estStatusPill.textContent = "PENDING";
+  }
+
+  const tSec = (entry.startFrame / 35).toFixed(2);
+  estTicLabel.textContent = entry.count > 1
+    ? `Tics ${entry.startFrame + 1}–${entry.endFrame + 1} (${entry.count} tics · ${tSec}s)`
+    : `Tic ${entry.startFrame + 1} (${tSec}s)`;
+
+  const lbl = labels[isRendered ? previewFrameIdx : entry.startFrame] || entry.desc;
+  const msInfo = isRendered && frameAt[previewFrameIdx] ? ` · ${(frameAt[previewFrameIdx] / 1000).toFixed(1)}s` : "";
+  estMeta.textContent = `Input: ${lbl}${msInfo}`;
+
+  const rgbaToDraw = isRendered && frames[previewFrameIdx]
+    ? frames[previewFrameIdx]
+    : (doneCount > 0 ? frames[doneCount - 1] : null);
+  if (rgbaToDraw) {
+    editorTooltipCanvas.hidden = false;
+    drawRgbaToSmallCanvas(rgbaToDraw, estCtx, estImg, estU32);
+  } else {
+    editorTooltipCanvas.hidden = true;
+  }
+
+  if (isRendered) {
+    estSub.textContent = `Showing Frame ${previewFrameIdx + 1}. Click this line in the editor to jump playback here.`;
+  } else if (isCheckingNow) {
+    const fnName = (tscInspection || tscBootInspection)?.fnName || "entry";
+    estSub.textContent = `TypeScript is at chunk ${curChunk || 1} inside ${fnName}()${doneCount > 0 ? ` (showing Frame ${doneCount})` : ""}.`;
+  } else {
+    estSub.textContent = `Queued (${entry.startFrame - doneCount + 1} tics after checkpoint Frame ${doneCount}).`;
+  }
+
+  editorStepTooltip.hidden = false;
+  const ev = e.event?.browserEvent;
+  if (ev) {
+    const x = Math.min(window.innerWidth - 300, Math.max(12, ev.clientX + 18));
+    const y = Math.min(window.innerHeight - 250, Math.max(12, ev.clientY - 20));
+    editorStepTooltip.style.left = `${x}px`;
+    editorStepTooltip.style.top = `${y}px`;
+  }
+});
+
+document.getElementById("editor")?.addEventListener("mouseleave", () => {
+  if (editorStepTooltip) editorStepTooltip.hidden = true;
+});
+
+monacoEditor.onMouseDown((e) => {
+  const pos = e.target?.position;
+  if (!pos) return;
+  const { lineSteps } = ensureParsedEditorSteps();
+  const entry = lineSteps.get(pos.lineNumber);
+  if (!entry) return;
+  if (entry.startFrame < frames.length) {
+    playing = false;
+    playBtn.textContent = "Play";
+    const targetFrame = (cur >= entry.startFrame && cur < Math.min(entry.endFrame, frames.length - 1))
+      ? cur + 1
+      : entry.startFrame;
+    drawFrame(targetFrame);
+    inspectTscFrame(targetFrame);
+    doomAudio.syncBgm();
+    doomAudio.onFrame(cur, labels[cur] || "");
+  } else if (frames.length >= entry.startFrame && frames.length <= entry.endFrame) {
+    enableTscAutoStep();
+    if (frames.length > 0) {
+      playing = false;
+      playBtn.textContent = "Play";
+      drawFrame(frames.length - 1);
+    }
+  }
+});
+
+const restored = await decodeHash(location.hash).catch(() => null);
+const hashText = restored && typeof restored.t === "string" ? restored.t : undefined;
+const run = await restoreRun(hashText);
+if (run) {
+  showRestored(run);
+  if (!run.ended) showToast(run.frames.length ? `Resuming: ${run.frames.length} frames already checked` : "Resuming the check");
+} else if (hashText !== undefined) {
+  if (restored.x) fpsSel.value = String(restored.x);
+  showScript(restored.t);
+  await runCurrent();
+} else {
+  const qp = new URLSearchParams(location.search);
+  loadPreset(qp.get("preset") || "tas");
+  await runCurrent();
+  if (qp.get("f") !== null) { playing = false; playBtn.textContent = "Play"; drawFrame(Number(qp.get("f"))); }
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+diff --git a/internal/ast/nodeflags.go b/internal/ast/nodeflags.go
+index 2c808601..3886baf4 100644
+--- a/internal/ast/nodeflags.go
++++ b/internal/ast/nodeflags.go
+@@ -45,6 +45,10 @@ const (
+ 	NodeFlagsPossiblyContainsDeprecatedTag NodeFlags = 1 << 26 // Set during parse if comment text contains '@deprecated'; must confirm via JSDoc lookup
+ 	NodeFlagsUnreachable                   NodeFlags = 1 << 27 // If node is unreachable according to the binder
+ 	NodeFlagsReparserTransformedLiteral    NodeFlags = 1 << 28 // If node was transformed during parsing, making its' naive text source not match the AST
++	// Set by the checker (getConditionalFlowTypeOfType) to memoize that no ancestor of this node,
++	// up to the enclosing statement, can contribute an implied constraint. Deeply nested type
++	// expressions otherwise re-walk the same ancestor chain once per contained type node.
++	NodeFlagsCondFlowClean NodeFlags = 1 << 29
+ 
+ 	NodeFlagsBlockScoped = NodeFlagsLet | NodeFlagsConst | NodeFlagsUsing
+ 	NodeFlagsConstant    = NodeFlagsConst | NodeFlagsUsing
+diff --git a/internal/checker/checker.go b/internal/checker/checker.go
+index 8c9eac4a..abe592c3 100644
+--- a/internal/checker/checker.go
++++ b/internal/checker/checker.go
+@@ -22864,7 +22864,17 @@ func (c *Checker) tryGetTypeFromTypeNode(node *ast.Node) *Type {
+ }
+ 
+ func (c *Checker) getTypeFromTypeNode(node *ast.Node) *Type {
+-	return c.getConditionalFlowTypeOfType(c.getTypeFromTypeNodeWorker(node), node)
++	links := c.typeNodeLinks.Get(node)
++	if links.resolvedFlowType != nil {
++		return links.resolvedFlowType
++	}
++	t := c.getConditionalFlowTypeOfType(c.getTypeFromTypeNodeWorker(node), node)
++	// A resolution in flight can hand back a circularity placeholder that is replaced once the
++	// cycle unwinds (circularAccessorAnnotations.ts), so only memoize results computed outside one.
++	if len(c.typeResolutions) == c.resolutionStart {
++		links.resolvedFlowType = t
++	}
++	return t
+ }
+ 
+ func (c *Checker) getTypeFromTypeNodeWorker(node *ast.Node) *Type {
+@@ -25017,10 +25027,46 @@ func (c *Checker) getUniqueLiteralTypeForTypeParameter(t *Type) *Type {
+ 	return t
+ }
+ 
++// condFlowTerminal reports whether the upward walk in getConditionalFlowTypeOfType stops at this node.
++func condFlowTerminal(node *ast.Node) bool {
++	return node == nil || ast.IsStatement(node) || node.Kind == ast.KindJSDoc
++}
++
++// condFlowRelevant reports whether the loop body of getConditionalFlowTypeOfType can do anything
++// other than `node = parent` when visiting this node (independent of the type being filtered).
++func condFlowRelevant(node *ast.Node) bool {
++	parent := node.Parent
++	if parent == nil {
++		return false
++	}
++	if ast.IsParameterDeclaration(parent) {
++		return true
++	}
++	if ast.IsConditionalTypeNode(parent) && node == parent.AsConditionalTypeNode().TrueType {
++		return true
++	}
++	if ast.IsMappedTypeNode(parent) && parent.AsMappedTypeNode().NameType == nil && node == parent.Type() {
++		return true
++	}
++	return false
++}
++
+ func (c *Checker) getConditionalFlowTypeOfType(t *Type, node *ast.Node) *Type {
+ 	var constraints []*Type
+ 	covariant := true
++	// Track where the last constraint-relevant node sat. Everything strictly above it is provably
++	// constraint-free for *any* type, and gets memoized on the node flags below; a later walk that
++	// reaches such a node stops immediately. Kept allocation-free: these chains run tens of
++	// thousands of nodes deep in generated code, so a per-call slice costs more than it saves.
++	start := node
++	var lastRelevant *ast.Node
+ 	for node != nil && !ast.IsStatement(node) && node.Kind != ast.KindJSDoc {
++		if node.Flags&ast.NodeFlagsCondFlowClean != 0 {
++			break
++		}
++		if condFlowRelevant(node) {
++			lastRelevant = node
++		}
+ 		parent := node.Parent
+ 		// only consider variance flipped by parameter locations - `keyof` types would usually be considered variance inverting, but
+ 		// often get used in indexed accesses where they behave sortof invariantly, but our checking is lax
+@@ -25048,6 +25094,17 @@ func (c *Checker) getConditionalFlowTypeOfType(t *Type, node *ast.Node) *Type {
+ 		}
+ 		node = parent
+ 	}
++	// Everything strictly above the last relevant node contributed nothing and cannot contribute
++	// for any other type either, so mark it clean for subsequent walks. `node` is where the walk
++	// stopped: a statement, a already-clean node, or nil - all of which terminate the mark loop.
++	mark := start
++	if lastRelevant != nil {
++		mark = lastRelevant.Parent
++	}
++	for mark != node && mark != nil {
++		mark.Flags |= ast.NodeFlagsCondFlowClean
++		mark = mark.Parent
++	}
+ 	if len(constraints) != 0 {
+ 		return c.getSubstitutionType(t, c.getIntersectionType(constraints))
+ 	}
+diff --git a/internal/checker/types.go b/internal/checker/types.go
+index d240bb3f..eee7bfe1 100644
+--- a/internal/checker/types.go
++++ b/internal/checker/types.go
+@@ -380,6 +380,10 @@ type SymbolNodeLinks struct {
+ type TypeNodeLinks struct {
+ 	resolvedType        *Type   // Resolved type associated with node
+ 	outerTypeParameters []*Type // Outer type parameters of anonymous object type
++	// Result of applying getConditionalFlowTypeOfType to resolvedType. resolvedType is already
++	// memoized per node, so the substitution walk above it is a pure function of the node, but it
++	// was being redone on every getTypeFromTypeNode call - O(nesting depth) each time.
++	resolvedFlowType *Type
+ }
+ 
+ type ComputedNameNodeLinks struct {

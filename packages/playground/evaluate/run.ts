@@ -50,7 +50,7 @@ const isolatedProgram = async ({
 
   if (justPrint || simpleTypeMode) {
     if (simpleTypeMode) {
-      console.log("instantiations:", program.getInstantiationCount());
+      console.log("instantiations: unavailable in TypeScript 7 API");
     }
     console.log(printType(typeString));
     console.log();

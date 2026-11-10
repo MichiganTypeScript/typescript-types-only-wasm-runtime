@@ -1,8 +1,7 @@
 (module
   (type $t0 (func))
   (type $t1 (func (result i32)))
-  (func $__wasm_call_ctors (export "__wasm_call_ctors") (type $t0)
-    (nop))
+  (func $__wasm_call_ctors (export "__wasm_call_ctors") (type $t0))
   (func $entry (export "entry") (type $t1) (result i32)
     (i32.const 1024))
   (memory $memory (export "memory") 2)

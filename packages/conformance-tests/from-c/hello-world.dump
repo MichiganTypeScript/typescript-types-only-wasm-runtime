@@ -63,9 +63,7 @@ Module {
                     kind: Inline {
                         locals: [],
                         expression: Expression {
-                            instrs: [
-                                Nop,
-                            ],
+                            instrs: [],
                         },
                     },
                     ty: TypeUse {
@@ -81,7 +79,7 @@ Module {
             Func(
                 Func {
                     span: Span {
-                        offset: 142,
+                        offset: 132,
                     },
                     id: Some(
                         "entry",
@@ -122,7 +120,7 @@ Module {
             Memory(
                 Memory {
                     span: Span {
-                        offset: 220,
+                        offset: 210,
                     },
                     id: Some(
                         "memory",
@@ -147,7 +145,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 259,
+                        offset: 249,
                     },
                     id: Some(
                         "__dso_handle",
@@ -176,7 +174,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 329,
+                        offset: 319,
                     },
                     id: Some(
                         "__data_end",
@@ -205,7 +203,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 395,
+                        offset: 385,
                     },
                     id: Some(
                         "__stack_low",
@@ -234,7 +232,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 463,
+                        offset: 453,
                     },
                     id: Some(
                         "__stack_high",
@@ -263,7 +261,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 534,
+                        offset: 524,
                     },
                     id: Some(
                         "__global_base",
@@ -292,7 +290,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 606,
+                        offset: 596,
                     },
                     id: Some(
                         "__heap_base",
@@ -321,7 +319,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 675,
+                        offset: 665,
                     },
                     id: Some(
                         "__heap_end",
@@ -350,7 +348,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 743,
+                        offset: 733,
                     },
                     id: Some(
                         "__memory_base",
@@ -379,7 +377,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 812,
+                        offset: 802,
                     },
                     id: Some(
                         "__table_base",
@@ -408,7 +406,7 @@ Module {
             Data(
                 Data {
                     span: Span {
-                        offset: 879,
+                        offset: 869,
                     },
                     id: Some(
                         "d0",
@@ -418,7 +416,7 @@ Module {
                         memory: Num(
                             0,
                             Span {
-                                offset: 879,
+                                offset: 869,
                             },
                         ),
                         offset: Expression {
@@ -651,6 +649,5 @@ Module {
 
 
 {
-    "Nop": 1,
     "I32Const": 1,
 }

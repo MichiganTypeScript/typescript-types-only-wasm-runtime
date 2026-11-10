@@ -1,0 +1,22 @@
+TypeRunner (marcj/TypeRunner) - reported as incompatible, not benchmarked.
+
+Why there is no number for it:
+
+1. npm `typerunner@0.0.1` ships only LICENSE, README.md and package.json.
+   No binary, no .wasm, no source. Nothing to run.
+2. Upstream is a C++ proof of concept (~30k LoC), last pushed 2025-03.
+   Its README states only very basic type expressions are supported:
+   "(distributive) conditional types, template literals, array/tuples,
+   index access, union, rest". `infer` is not listed, and interfaces and
+   classes are not supported.
+3. "Drop-in replacement for the official TypeScript compiler" is listed as an
+   explicit NON-GOAL, and it has no API to resolve a named type and print the
+   resolved type as text (requirement 2 in ../../README.md).
+
+doom's generated module needs `infer` throughout (template-literal bit
+inference, tuple destructuring), default type parameters, and ~24M
+instantiations per chunk, so (2) alone rules it out independently of (1).
+
+To try anyway: build from source with cmake per upstream README, then
+  TYPERUNNER_BIN=/path/to/typerunner ../../run-all.sh typerunner
+The adapter will pick it up.

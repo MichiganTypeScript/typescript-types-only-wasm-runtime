@@ -191,9 +191,7 @@ Module {
                     kind: Inline {
                         locals: [],
                         expression: Expression {
-                            instrs: [
-                                Nop,
-                            ],
+                            instrs: [],
                         },
                     },
                     ty: TypeUse {
@@ -209,7 +207,7 @@ Module {
             Func(
                 Func {
                     span: Span {
-                        offset: 299,
+                        offset: 289,
                     },
                     id: Some(
                         "countAliveNeighbors",
@@ -282,7 +280,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 579,
+                                                offset: 569,
                                             },
                                         ),
                                     },
@@ -502,7 +500,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 2018,
+                                                offset: 2008,
                                             },
                                         ),
                                     },
@@ -539,7 +537,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 2136,
+                                                offset: 2126,
                                             },
                                         ),
                                     },
@@ -677,7 +675,7 @@ Module {
             Func(
                 Func {
                     span: Span {
-                        offset: 2721,
+                        offset: 2711,
                     },
                     id: Some(
                         "updateGrid",
@@ -937,7 +935,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 4117,
+                                                offset: 4107,
                                             },
                                         ),
                                     },
@@ -982,7 +980,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 4372,
+                                                offset: 4362,
                                             },
                                         ),
                                     },
@@ -999,7 +997,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 3873,
+                                                offset: 3863,
                                             },
                                         ),
                                     },
@@ -1230,7 +1228,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 5753,
+                                                offset: 5743,
                                             },
                                         ),
                                     },
@@ -1242,7 +1240,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 5692,
+                                                offset: 5682,
                                             },
                                         ),
                                     },
@@ -1416,7 +1414,7 @@ Module {
             Func(
                 Func {
                     span: Span {
-                        offset: 6661,
+                        offset: 6651,
                     },
                     id: Some(
                         "displayGrid",
@@ -1612,7 +1610,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 7719,
+                                                offset: 7709,
                                             },
                                         ),
                                     },
@@ -1629,7 +1627,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 7461,
+                                                offset: 7451,
                                             },
                                         ),
                                     },
@@ -1730,7 +1728,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 8355,
+                                                offset: 8345,
                                             },
                                         ),
                                     },
@@ -1816,7 +1814,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 8926,
+                                                offset: 8916,
                                             },
                                         ),
                                     },
@@ -1869,7 +1867,7 @@ Module {
             Func(
                 Func {
                     span: Span {
-                        offset: 9038,
+                        offset: 9028,
                     },
                     id: Some(
                         "entry",
@@ -2020,7 +2018,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 9588,
+                                                offset: 9578,
                                             },
                                         ),
                                     },
@@ -2032,7 +2030,7 @@ Module {
                                         memory: Num(
                                             0,
                                             Span {
-                                                offset: 9489,
+                                                offset: 9479,
                                             },
                                         ),
                                     },
@@ -2242,7 +2240,7 @@ Module {
             Memory(
                 Memory {
                     span: Span {
-                        offset: 10735,
+                        offset: 10725,
                     },
                     id: Some(
                         "memory",
@@ -2267,7 +2265,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 10774,
+                        offset: 10764,
                     },
                     id: Some(
                         "g0",
@@ -2294,7 +2292,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 10817,
+                        offset: 10807,
                     },
                     id: Some(
                         "__dso_handle",
@@ -2323,7 +2321,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 10887,
+                        offset: 10877,
                     },
                     id: Some(
                         "__data_end",
@@ -2352,7 +2350,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 10953,
+                        offset: 10943,
                     },
                     id: Some(
                         "__stack_low",
@@ -2381,7 +2379,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 11021,
+                        offset: 11011,
                     },
                     id: Some(
                         "__stack_high",
@@ -2410,7 +2408,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 11092,
+                        offset: 11082,
                     },
                     id: Some(
                         "__global_base",
@@ -2439,7 +2437,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 11164,
+                        offset: 11154,
                     },
                     id: Some(
                         "__heap_base",
@@ -2468,7 +2466,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 11233,
+                        offset: 11223,
                     },
                     id: Some(
                         "__heap_end",
@@ -2497,7 +2495,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 11301,
+                        offset: 11291,
                     },
                     id: Some(
                         "__memory_base",
@@ -2526,7 +2524,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 11370,
+                        offset: 11360,
                     },
                     id: Some(
                         "__table_base",
@@ -2555,7 +2553,7 @@ Module {
             Data(
                 Data {
                     span: Span {
-                        offset: 11437,
+                        offset: 11427,
                     },
                     id: Some(
                         "d0",
@@ -2565,7 +2563,7 @@ Module {
                         memory: Num(
                             0,
                             Span {
-                                offset: 11437,
+                                offset: 11427,
                             },
                         ),
                         offset: Expression {
@@ -2589,7 +2587,7 @@ Module {
             Data(
                 Data {
                     span: Span {
-                        offset: 11476,
+                        offset: 11466,
                     },
                     id: Some(
                         "d1",
@@ -2599,7 +2597,7 @@ Module {
                         memory: Num(
                             0,
                             Span {
-                                offset: 11476,
+                                offset: 11466,
                             },
                         ),
                         offset: Expression {
@@ -2670,7 +2668,6 @@ Module {
     "I32Eq": 2,
     "Select": 2,
     "I32GtS": 2,
-    "Nop": 1,
     "I32Mul": 1,
     "I32GeS": 1,
     "I32Load": 1,

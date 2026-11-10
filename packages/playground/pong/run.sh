@@ -1,2 +1,0 @@
-./compile.sh
-./serve.sh

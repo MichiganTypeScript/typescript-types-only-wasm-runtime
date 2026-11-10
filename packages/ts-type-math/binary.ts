@@ -315,10 +315,21 @@ export type ToDecimalUnsignedBigInt<
   _ToDecimalUnsignedBigInt<ReverseString8Segments<T>>
 >;
 
+/// Sum the set bits' place values, carrying the running total *down* the
+/// recursion rather than wrapping an `AddBigInt` around the result on the way
+/// back up.
+///
+/// The wrapping version nested one add per one bit, so a value with many set
+/// bits blew the checker's budget: `11111111111111111111111111111100` - the low
+/// half of a shifted negative, an ordinary result - was TS2589, while a small
+/// value like `100` was fine. That is why every failing 64-bit shift case had a
+/// negative operand. An accumulator keeps the nesting flat, and the recursion
+/// depth is the string length either way.
 type _ToDecimalUnsignedBigInt<
   Binary extends string,
 
   _PowerOfTwo extends bigint = 0n,
+  _Acc extends bigint = 0n,
   _NextPowerOfTwo extends bigint = AddBigInt<_PowerOfTwo,  1n>
 > =
   Binary extends `${infer Head}${infer Tail}`
@@ -326,20 +337,19 @@ type _ToDecimalUnsignedBigInt<
   ? Head extends '0'
     ? _ToDecimalUnsignedBigInt<
         Tail,
-        _NextPowerOfTwo
+        _NextPowerOfTwo,
+        _Acc
       >
 
     : Head extends '1'
-      ? AddBigInt<
-          _ToDecimalUnsignedBigInt<
-            Tail,
-            _NextPowerOfTwo
-          >,
-          PowersOfTwoBigInt[Convert.TSBigInt.ToTSNumber<_PowerOfTwo>]
+      ? _ToDecimalUnsignedBigInt<
+          Tail,
+          _NextPowerOfTwo,
+          AddBigInt<_Acc, PowersOfTwoBigInt[Convert.TSBigInt.ToTSNumber<_PowerOfTwo>]>
         >
 
       : never
-  : 0n
+  : _Acc
 
 /** '0' or '1' */
 export type Bit = string;
@@ -363,7 +373,19 @@ export type SignBit<
 // type x = ToDecimalUnsigned<"00000000001100010111100011000110">
 //   ^?
 
-export type TwosComplementFlip<
+/// Split off the first 32 characters, or `false` if there are not that many.
+/// Each non-final placeholder consumes exactly one character, so this is a
+/// single instantiation rather than a per-character recursion.  The miss is
+/// `false` and not `never` because `never extends [string, ""]` is true, which
+/// would route every short value down the 64 bit path.
+type _Split32<T extends string> =
+  T extends `${infer c0}${infer c1}${infer c2}${infer c3}${infer c4}${infer c5}${infer c6}${infer c7}${infer c8}${infer c9}${infer c10}${infer c11}${infer c12}${infer c13}${infer c14}${infer c15}${infer c16}${infer c17}${infer c18}${infer c19}${infer c20}${infer c21}${infer c22}${infer c23}${infer c24}${infer c25}${infer c26}${infer c27}${infer c28}${infer c29}${infer c30}${infer c31}${infer rest}`
+    ? [`${c0}${c1}${c2}${c3}${c4}${c5}${c6}${c7}${c8}${c9}${c10}${c11}${c12}${c13}${c14}${c15}${c16}${c17}${c18}${c19}${c20}${c21}${c22}${c23}${c24}${c25}${c26}${c27}${c28}${c29}${c30}${c31}`, rest]
+    : false
+
+type _Zero32 = "00000000000000000000000000000000"
+
+type _TwosComplementFlipFixed<
   T extends string
 > = ReverseString8Segments<
   StringAddFixedReversed<
@@ -374,6 +396,27 @@ export type TwosComplementFlip<
     []
   >
 >
+
+/// Negation is not-then-add-one, and the add recurses once per character.  At 64
+/// characters that recursion exceeds TypeScript's instantiation depth limit, and
+/// the failure is silent: the result comes back as `${any}${any}${any}...`
+/// instead of a string of bits, which then poisons whatever memory word it is
+/// stored into.  Negating the halves separately keeps every add at 32
+/// characters, which measures well inside the limit:
+///
+///   -(hi:lo) == (~hi):(-lo), except when lo is zero and the carry reaches hi
+///
+/// Anything that is not exactly 64 characters - an i32, or the 34 character
+/// division accumulator - is already short enough to negate in one piece.
+export type TwosComplementFlip<
+  T extends string
+> = _Split32<T> extends [infer hi extends string, infer lo extends string]
+  ? _Split32<lo> extends [string, ""]
+    ? lo extends _Zero32
+      ? `${_TwosComplementFlipFixed<hi>}${lo}`
+      : `${BitwiseNotBinary<hi>}${_TwosComplementFlipFixed<lo>}`
+    : _TwosComplementFlipFixed<T>
+  : _TwosComplementFlipFixed<T>
 
 // this takes a positive TsNumber nad makes it negative
 export type WithNegativeSign<
@@ -453,6 +496,68 @@ export type I64ClzBinary64<
   Convert.TSBigInt.ToWasmValue<
     Convert.TSNumber.ToTSBigInt<
       CountLeadingZeros<a>
+    >
+  >
+>
+
+type CountTrailingZeros<
+  a extends WasmValue,
+  count extends 1[] = []
+> = Satisfies<number,
+  a extends `${infer init extends string}0`
+  ? CountTrailingZeros<
+      init,
+      [...count, 1]
+    >
+  : count['length']
+>
+
+type CountOneBits<
+  a extends WasmValue,
+  count extends 1[] = []
+> = Satisfies<number,
+  a extends `${infer bit extends string}${infer tail extends string}`
+  ? CountOneBits<
+      tail,
+      bit extends '1' ? [...count, 1] : count
+    >
+  : count['length']
+>
+
+export type I32CtzBinary<
+  a extends WasmValue
+> = Satisfies<WasmValue,
+  Convert.TSNumber.ToWasmValue<
+    CountTrailingZeros<a>,
+    'i32'
+  >
+>
+
+export type I64CtzBinary64<
+  a extends WasmValue
+> = Satisfies<WasmValue,
+  Convert.TSBigInt.ToWasmValue<
+    Convert.TSNumber.ToTSBigInt<
+      CountTrailingZeros<a>
+    >
+  >
+>
+
+export type I32PopcntBinary<
+  a extends WasmValue
+> = Satisfies<WasmValue,
+  Convert.TSNumber.ToWasmValue<
+    CountOneBits<a>,
+    'i32'
+  >
+>
+
+export type I64PopcntBinary64<
+  a extends WasmValue
+> = Satisfies<WasmValue,
+  Convert.TSBigInt.ToWasmValue<
+    Convert.TSNumber.ToTSBigInt<
+      CountOneBits<a>
     >
   >
 >

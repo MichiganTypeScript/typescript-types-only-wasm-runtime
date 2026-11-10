@@ -1,8 +1,7 @@
 (module
   (type $t0 (func))
   (type $t1 (func (param i32 i32) (result i32)))
-  (func $__wasm_call_ctors (export "__wasm_call_ctors") (type $t0)
-    (nop))
+  (func $__wasm_call_ctors (export "__wasm_call_ctors") (type $t0))
   (func $entry (export "entry") (type $t1) (param $p0 i32) (param $p1 i32) (result i32)
     (i32.add
       (local.get $p0)

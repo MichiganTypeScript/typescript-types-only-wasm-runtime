@@ -1,6 +1,6 @@
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
-import ts from "typescript";
+import type { EvaluationProgram } from "./ts";
 import { mkdirSync, readdirSync, statSync, unlinkSync } from "fs";
 import {
   STATS_PREFIX,
@@ -113,13 +113,13 @@ interface TSProgramStats {
   files: number;
 }
 
-export const getProgramStats = (program: ts.Program): TSProgramStats => ({
-  instantiations: program.getInstantiationCount(),
-  types: program.getTypeCount(),
-  symbols: program.getSymbolCount(),
-  identifiers: program.getIdentifierCount(),
-  files: program.getSourceFiles().length,
-  cache: program.getRelationCacheSizes(),
+export const getProgramStats = (program: EvaluationProgram): TSProgramStats => ({
+  instantiations: 0,
+  types: 0,
+  symbols: 0,
+  identifiers: 0,
+  files: program.getSourceFileNames().length,
+  cache: {},
 });
 
 type RunMetadata = {
@@ -134,7 +134,7 @@ export const generateFullStats = async ({
   metadata,
   metering,
 }: {
-  program: ts.Program;
+  program: EvaluationProgram;
   metadata: RunMetadata;
   metering: MeteringDefinite;
 }) => {
@@ -449,7 +449,7 @@ export const logStats = async ({
 }: {
   typeString: string,
   current: number,
-  program: ts.Program,
+  program: EvaluationProgram,
   meter: Meter,
   previousCount: number,
   startingCount: number,

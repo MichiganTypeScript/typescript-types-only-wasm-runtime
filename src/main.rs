@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     collections::{HashMap, VecDeque},
+    env,
     ffi::OsStr,
     fmt,
     fs::{self, DirEntry},
@@ -11,6 +12,12 @@ use std::{
 };
 
 use indexmap::{IndexMap, IndexSet};
+
+mod aot;
+mod word4;
+mod aot_cfg;
+mod aot_clean;
+mod aot_stateful;
 
 use wast::{
     core::{
@@ -922,7 +929,13 @@ pub struct SourceFile {
     // MemoryData by id
     data: RefCell<IndexMap<String, MemoryData>>,
 
-    /// the arguments constraint to the entry function
+    /// Type of the `entry` export's argument tuple, e.g. `[number, number]`.
+    ///
+    /// Defaults to the empty tuple rather than the empty string: a module with no
+    /// function named `entry` never calls `set_args`, and interpolating "" here
+    /// emitted `arguments extends ,` - a syntax error that stops tsc parsing the
+    /// file, and so stops it checking the whole project. `i64-arith.ts` shipped
+    /// like that and `tsc --noEmit` reported only TS1110 for the entire repo.
     args: RefCell<String>,
 
     // module types.  rarely needed, but unfortunately not never needed
@@ -1080,7 +1093,7 @@ impl Default for SourceFile {
 impl SourceFile {
     pub fn new(preview_bytes: bool) -> Self {
         SourceFile {
-            args: RefCell::new(String::from("")),
+            args: RefCell::new(String::from("[]")),
             data: RefCell::new(IndexMap::new()),
             globals: RefCell::new(IndexMap::new()),
             imports: RefCell::new(IndexMap::new()),
@@ -1241,18 +1254,30 @@ pub fn count_instructions(module: &Module) -> IndexMap<String, u32> {
     counts
 }
 
-pub fn wat_to_dts(wat: String, dump_path: &str, preview_bytes: bool) -> SourceFile {
-    let buf = parser::ParseBuffer::new(&wat).unwrap();
+/// Parse a `.wat` and write its `.dump` debug artifact. This is the half of
+/// `wat_to_dts` that works for every fixture, including the ones the legacy
+/// TypeScript generator cannot model.
+pub fn wat_to_dump(wat: &str, dump_path: &str) {
+    let buf = parser::ParseBuffer::new(wat).unwrap();
     let parsed_wat = &parser::parse::<Wat>(&buf).unwrap();
-
-    let source = SourceFile::new(preview_bytes);
 
     if let wast::Wat::Module(ref module) = parsed_wat {
         let counter = count_instructions(module);
 
         let dump = format!("{:#?}\n\n\n\n\n{:#?}", module, counter);
         dbg_dump_file!(dump, dump_path);
+    }
+}
 
+pub fn wat_to_dts(wat: String, dump_path: &str, preview_bytes: bool) -> SourceFile {
+    wat_to_dump(&wat, dump_path);
+
+    let buf = parser::ParseBuffer::new(&wat).unwrap();
+    let parsed_wat = &parser::parse::<Wat>(&buf).unwrap();
+
+    let source = SourceFile::new(preview_bytes);
+
+    if let wast::Wat::Module(ref module) = parsed_wat {
         match &module.kind {
             ModuleKind::Binary(_) => {
                 panic!("WebAssembly Binary is not supported.  Only WebAssembly Text.");
@@ -1270,6 +1295,26 @@ pub fn skip_list() -> Vec<&'static str> {
     vec![
         // "conway", //
     ]
+}
+
+/// Fixtures that are still compiled from `.wat` to `.wasm` (so the checked-in binary
+/// can never drift from its source) but that are deliberately not fed to the legacy
+/// TypeScript generator in this file. They exist to exercise the Rust-side compilers
+/// directly and use features the legacy generator has never modelled -- currently
+/// imported functions, which it panics on.
+pub fn codegen_skip_list() -> Vec<&'static str> {
+    vec![
+        "call-indirect-import", // imports a function; only the AOT dispatch tests read this
+    ]
+}
+
+/// the file is only compiled to wasm, never handed to the legacy TS generator
+pub fn should_skip_codegen(dir_entry: &DirEntry) -> bool {
+    let path = dir_entry.path().with_extension("");
+    let Some(file_name) = path.file_name().and_then(OsStr::to_str) else {
+        return false;
+    };
+    codegen_skip_list().iter().any(|&skip| file_name == skip)
 }
 
 pub fn focus_list() -> Vec<&'static str> {
@@ -1322,15 +1367,35 @@ pub fn ensure_version(cmd: &str, arg: &str, expected: &str) {
         // however some tools write to stdout instead, usually by web developers that don't know better
         actual = std::str::from_utf8(&output.stdout).unwrap_or_else(|_| panic!("Error decoding stdout"));
     }
-    let error = format!("expected {} to be version {}, got {}", cmd, expected, actual);
-    assert!(actual.contains(expected), "{error}");
+    let minimum = parse_version(expected).expect("minimum version must be x.y.z");
+    let found = parse_version(actual)
+        .unwrap_or_else(|| panic!("could not find an x.y.z version in {} output: {}", cmd, actual));
+
+    let error = format!("expected {} to be version {} or newer, got {}", cmd, expected, actual);
+    assert!(found >= minimum, "{error}");
+}
+
+/// Returns the first `x.y.z` triple in `text`, so that a version can be compared
+/// numerically rather than by substring. A substring match rejects every version
+/// except the pinned one: "1.0.41".contains("1.0.39") is false.
+pub fn parse_version(text: &str) -> Option<(u32, u32, u32)> {
+    text.split(|c: char| !c.is_ascii_digit() && c != '.').find_map(|token| {
+        let mut parts = token.split('.');
+        let major = parts.next()?.parse().ok()?;
+        let minor = parts.next()?.parse().ok()?;
+        let patch = parts.next()?.parse().ok()?;
+        if parts.next().is_some() {
+            return None;
+        }
+        Some((major, minor, patch))
+    })
 }
 
 pub fn generate_wasm2wat(dir_entry: &DirEntry) {
     let wasm_input = dir_entry.path().with_extension("wasm");
 
     let cmd = "wasm2wat";
-    ensure_version(cmd, "--version", "1.0.34");
+    ensure_version(cmd, "--version", "1.0.39");
 
     // convert the .wat file to a .wasm file (also validates the .wat)
     let output = Command::new(cmd)
@@ -1410,7 +1475,7 @@ pub fn get_c_files() -> Vec<DirEntry> {
 
 pub fn generate_wat2wasm(wat_input: &DirEntry) {
     let cmd = "wat2wasm";
-    ensure_version(cmd, "--version", "1.0.34");
+    ensure_version(cmd, "--version", "1.0.39");
 
     // convert the .wat file to a .wasm file (also validates the .wat)
     let output = Command::new(cmd)
@@ -1441,8 +1506,27 @@ pub fn create_ts(source_file: &SourceFile, dir_entry: &DirEntry) {
     fs::write(path, source_file.to_string()).unwrap();
 }
 
+/// True when `cmd` can be spawned at all. Used to skip regeneration steps whose
+/// output is checked in, so the suite still runs on a machine without the full
+/// wasm toolchain installed.
+pub fn tool_available(cmd: &str) -> bool {
+    Command::new(cmd).arg("--version").output().is_ok()
+}
+
 pub fn generate_c2wasm(c_input: &DirEntry) {
     let cmd = "clang-18";
+    if !tool_available(cmd) {
+        // The .wasm is checked in next to the .c, so an absent compiler only means
+        // we cannot notice an edit to the .c file. Fail if there is nothing to fall
+        // back to, otherwise carry on with the committed artifact.
+        let wasm = c_input.path().with_extension("wasm");
+        assert!(
+            wasm.exists(),
+            "{cmd} is not installed and there is no committed {} to fall back to",
+            wasm.display()
+        );
+        return;
+    }
     ensure_version(cmd, "-v", "18.1.8");
 
     // convert the .wat file to a .wasm file (also validates the .wat)
@@ -1471,6 +1555,105 @@ pub fn generate_c2wasm(c_input: &DirEntry) {
 }
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    // CFG AOT mode: cargo run -- --aot-cfg path/to/file.wasm
+    if args.len() >= 3 && args[1] == "--aot-cfg" {
+        let wasm_path = &args[2];
+        let bytes = std::fs::read(wasm_path).expect("could not read the wasm file");
+        let mut compiler = aot_cfg::CfgCompiler::new();
+        if let Some(index) = args.iter().position(|a| a == "--bits") {
+            compiler.bits_override = args.get(index + 1).and_then(|b| b.parse().ok());
+        }
+        match compiler.compile(&bytes) {
+            Ok(output) => {
+                // `-o dest` writes somewhere else. A sweep that varies a cap and
+                // compares outputs needs this; without it every run of the sweep
+                // overwrites the one checked-in path and the comparison is
+                // between a file and itself.
+                let out_path = match args.iter().position(|a| a == "-o" || a == "--output") {
+                    Some(index) => match args.get(index + 1) {
+                        Some(dest) => std::path::PathBuf::from(dest),
+                        None => {
+                            eprintln!("{} needs a path after it", args[index]);
+                            std::process::exit(1);
+                        }
+                    },
+                    None => std::path::Path::new(wasm_path).with_extension("cfg.ts"),
+                };
+                let output = if args.iter().any(|a| a == "--word4") { word4::transform(&output) } else { output };
+                std::fs::write(&out_path, output).expect("could not write the output");
+                println!("wrote {}", out_path.display());
+            }
+            Err(error) => {
+                eprintln!("aot-cfg failed: {error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
+    // Clean AOT mode: cargo run -- --aot-clean path/to/file.wasm
+    if args.len() >= 3 && args[1] == "--aot-clean" {
+        let wasm_path = &args[2];
+        let wasm_bytes = fs::read(wasm_path).expect(&format!("Failed to read {}", wasm_path));
+
+        let mut compiler = aot_clean::CleanAotCompiler::new();
+        match compiler.compile(&wasm_bytes) {
+            Ok(output) => {
+                let output_path = wasm_path.replace(".wasm", ".aot.ts");
+                fs::write(&output_path, &output).expect("Failed to write output");
+                eprintln!("Generated clean AOT output: {}", output_path);
+            }
+            Err(e) => {
+                eprintln!("Clean AOT compilation failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
+    // Stateful AOT mode: cargo run -- --aot-stateful path/to/file.wasm
+    if args.len() >= 3 && args[1] == "--aot-stateful" {
+        let wasm_path = &args[2];
+        let wasm_bytes = fs::read(wasm_path).expect(&format!("Failed to read {}", wasm_path));
+
+        let mut compiler = aot_stateful::StatefulAotCompiler::new();
+        match compiler.compile(&wasm_bytes) {
+            Ok(output) => {
+                let output_path = wasm_path.replace(".wasm", ".aot.ts");
+                fs::write(&output_path, &output).expect("Failed to write output");
+                eprintln!("Generated stateful AOT output: {}", output_path);
+            }
+            Err(e) => {
+                eprintln!("Stateful AOT compilation failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
+    // AOT mode (legacy): cargo run -- --aot path/to/file.wasm
+    if args.len() >= 3 && args[1] == "--aot" {
+        let wasm_path = &args[2];
+        let wasm_bytes = fs::read(wasm_path).expect(&format!("Failed to read {}", wasm_path));
+
+        let mut compiler = aot::AotCompiler::new();
+        match compiler.compile(&wasm_bytes) {
+            Ok(output) => {
+                // Write to .aot.ts file
+                let output_path = wasm_path.replace(".wasm", ".aot.ts");
+                fs::write(&output_path, &output).expect("Failed to write output");
+                eprintln!("Generated AOT output: {}", output_path);
+            }
+            Err(e) => {
+                eprintln!("AOT compilation failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
     if "this whole thing was such a dumb idea yet somehow a stroke of genius at the same time".len() == 85 {
         // LOL we have to raise the stack size in Rust to compile this shit.
         let stack_size = 16 * 1024 * 1024; // 16 MB stack
@@ -1541,8 +1724,68 @@ mod tests {
         let all_files: Vec<_> = from_wat.iter().chain(from_c.iter()).collect();
 
         for dir_entry in all_files {
+            if should_skip_codegen(dir_entry) {
+                // Still refresh the .dump so the debug artifact cannot drift from
+                // the .wat; only the legacy TypeScript emission is skipped.
+                let wat = fs::read_to_string(dir_entry.path().with_extension("wat")).unwrap();
+                let dump_path = dir_entry.path().with_extension("dump");
+                wat_to_dump(&wat, dump_path.to_str().unwrap());
+                continue;
+            }
             let source_file = parse_wat_and_dump(dir_entry);
             create_ts(&source_file, dir_entry);
         }
+    }
+
+    /// Every generated `.ts` has to be syntactically valid TypeScript.
+    ///
+    /// A parse error in one generated file is not a local problem: `tsc` stops at
+    /// the first one, so the project's build gate (`pnpm test` ends in `tsc`)
+    /// reports that single error and checks nothing else. `i64-arith.ts` shipped
+    /// with `arguments extends ,` - the entry-args string is only set for a
+    /// function named `entry`, and this module has none - and for as long as it
+    /// was there `tsc --noEmit` finished in 3 seconds having type-checked none of
+    /// the repo. It hid 156 failing type assertions in ts-type-math.
+    ///
+    /// This checks the shape rather than running tsc, so it stays a fast unit
+    /// test: an unsatisfied `extends` is exactly what an empty interpolation
+    /// leaves behind, and it is the failure mode that actually happened.
+    #[test]
+    fn generated_typescript_has_no_empty_constraints() {
+        let dirs = [
+            "./packages/conformance-tests/from-wat/",
+            "./packages/conformance-tests/from-wat-single/",
+            "./packages/conformance-tests/from-c/",
+        ];
+        let mut bad = Vec::new();
+        for dir in dirs {
+            let Ok(entries) = fs::read_dir(dir) else { continue };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(OsStr::to_str) != Some("ts") {
+                    continue;
+                }
+                // .cfg.ts comes from the CFG backend, which is covered elsewhere
+                if path.to_string_lossy().ends_with(".cfg.ts") {
+                    continue;
+                }
+                let Ok(text) = fs::read_to_string(&path) else { continue };
+                for (number, line) in text.lines().enumerate() {
+                    let trimmed = line.trim_end();
+                    if trimmed.ends_with("extends ,")
+                        || trimmed.ends_with("extends ")
+                        || trimmed.ends_with("extends >")
+                    {
+                        bad.push(format!("{}:{}: {}", path.display(), number + 1, trimmed.trim()));
+                    }
+                }
+            }
+        }
+        assert!(
+            bad.is_empty(),
+            "generated TypeScript has an empty `extends` constraint, which stops \
+             tsc parsing the file and so stops it checking the whole project:\n  {}",
+            bad.join("\n  ")
+        );
     }
 }

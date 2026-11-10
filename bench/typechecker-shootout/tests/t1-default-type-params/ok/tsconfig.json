@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "strict": false,
+    "types": [],
+    "skipLibCheck": true
+  },
+  "files": [
+    "index.ts"
+  ]
+}

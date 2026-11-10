@@ -4,8 +4,7 @@
   (type $t2 (func (param i32 i32 i32)))
   (type $t3 (func (param i32 i32 i32) (result i32)))
   (type $t4 (func (param i32) (result i32)))
-  (func $__wasm_call_ctors (export "__wasm_call_ctors") (type $t0)
-    (nop))
+  (func $__wasm_call_ctors (export "__wasm_call_ctors") (type $t0))
   (func $countAliveNeighbors (export "countAliveNeighbors") (type $t1) (param $p0 i32) (param $p1 i32) (param $p2 i32) (param $p3 i32) (param $p4 i32) (param $p5 i32)
     (local $l6 i32) (local $l7 i32) (local $l8 i32) (local $l9 i32) (local $l10 i32) (local $l11 i32)
     (i32.store

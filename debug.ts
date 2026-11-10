@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import ts from 'typescript-legacy';
 import path from 'path';
 
 // Define the path to your specific TypeScript file you want to analyze

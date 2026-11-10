@@ -63,9 +63,7 @@ Module {
                     kind: Inline {
                         locals: [],
                         expression: Expression {
-                            instrs: [
-                                Nop,
-                            ],
+                            instrs: [],
                         },
                     },
                     ty: TypeUse {
@@ -81,7 +79,7 @@ Module {
             Func(
                 Func {
                     span: Span {
-                        offset: 142,
+                        offset: 132,
                     },
                     id: Some(
                         "entry",
@@ -122,7 +120,7 @@ Module {
             Func(
                 Func {
                     span: Span {
-                        offset: 220,
+                        offset: 210,
                     },
                     id: Some(
                         "entrySize",
@@ -163,7 +161,7 @@ Module {
             Memory(
                 Memory {
                     span: Span {
-                        offset: 303,
+                        offset: 293,
                     },
                     id: Some(
                         "memory",
@@ -188,7 +186,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 342,
+                        offset: 332,
                     },
                     id: Some(
                         "__dso_handle",
@@ -217,7 +215,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 412,
+                        offset: 402,
                     },
                     id: Some(
                         "__data_end",
@@ -246,7 +244,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 478,
+                        offset: 468,
                     },
                     id: Some(
                         "__stack_low",
@@ -275,7 +273,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 546,
+                        offset: 536,
                     },
                     id: Some(
                         "__stack_high",
@@ -304,7 +302,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 617,
+                        offset: 607,
                     },
                     id: Some(
                         "__global_base",
@@ -333,7 +331,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 689,
+                        offset: 679,
                     },
                     id: Some(
                         "__heap_base",
@@ -362,7 +360,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 758,
+                        offset: 748,
                     },
                     id: Some(
                         "__heap_end",
@@ -391,7 +389,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 826,
+                        offset: 816,
                     },
                     id: Some(
                         "__memory_base",
@@ -420,7 +418,7 @@ Module {
             Global(
                 Global {
                     span: Span {
-                        offset: 895,
+                        offset: 885,
                     },
                     id: Some(
                         "__table_base",
@@ -449,7 +447,7 @@ Module {
             Data(
                 Data {
                     span: Span {
-                        offset: 962,
+                        offset: 952,
                     },
                     id: Some(
                         "d0",
@@ -459,7 +457,7 @@ Module {
                         memory: Num(
                             0,
                             Span {
-                                offset: 962,
+                                offset: 952,
                             },
                         ),
                         offset: Expression {
@@ -500,5 +498,4 @@ Module {
 
 {
     "I32Const": 2,
-    "Nop": 1,
 }

@@ -1,8 +1,7 @@
 (module
   (type $t0 (func (param i32) (result i32)))
   (type $t1 (func))
-  (func $__wasm_call_ctors (export "__wasm_call_ctors") (type $t1)
-    (nop))
+  (func $__wasm_call_ctors (export "__wasm_call_ctors") (type $t1))
   (func $toupper (export "toupper") (type $t0) (param $p0 i32) (result i32)
     (select
       (i32.sub

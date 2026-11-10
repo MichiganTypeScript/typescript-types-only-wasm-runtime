@@ -1,0 +1,536 @@
+Module {
+    span: Span {
+        offset: 324,
+    },
+    id: None,
+    name: None,
+    kind: Text(
+        [
+            Func(
+                Func {
+                    span: Span {
+                        offset: 334,
+                    },
+                    id: Some(
+                        "mul_fixed",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [
+                            "mul_fixed",
+                        ],
+                    },
+                    kind: Inline {
+                        locals: [],
+                        expression: Expression {
+                            instrs: [
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                I64ExtendI32S,
+                                LocalGet(
+                                    Id(
+                                        "b",
+                                    ),
+                                ),
+                                I64ExtendI32S,
+                                I64Mul,
+                                I64Const(
+                                    16,
+                                ),
+                                I64ShrU,
+                                I32WrapI64,
+                            ],
+                        },
+                    },
+                    ty: TypeUse {
+                        index: None,
+                        inline: Some(
+                            FunctionType {
+                                params: [
+                                    (
+                                        Some(
+                                            "a",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                    (
+                                        Some(
+                                            "b",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                ],
+                                results: [
+                                    I32,
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ),
+            Func(
+                Func {
+                    span: Span {
+                        offset: 585,
+                    },
+                    id: Some(
+                        "add64",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [
+                            "add64",
+                        ],
+                    },
+                    kind: Inline {
+                        locals: [],
+                        expression: Expression {
+                            instrs: [
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                I64ExtendI32S,
+                                LocalGet(
+                                    Id(
+                                        "b",
+                                    ),
+                                ),
+                                I64ExtendI32S,
+                                I64Add,
+                                I32WrapI64,
+                            ],
+                        },
+                    },
+                    ty: TypeUse {
+                        index: None,
+                        inline: Some(
+                            FunctionType {
+                                params: [
+                                    (
+                                        Some(
+                                            "a",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                    (
+                                        Some(
+                                            "b",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                ],
+                                results: [
+                                    I32,
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ),
+            Func(
+                Func {
+                    span: Span {
+                        offset: 781,
+                    },
+                    id: Some(
+                        "sub64",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [
+                            "sub64",
+                        ],
+                    },
+                    kind: Inline {
+                        locals: [],
+                        expression: Expression {
+                            instrs: [
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                I64ExtendI32S,
+                                LocalGet(
+                                    Id(
+                                        "b",
+                                    ),
+                                ),
+                                I64ExtendI32S,
+                                I64Sub,
+                                I32WrapI64,
+                            ],
+                        },
+                    },
+                    ty: TypeUse {
+                        index: None,
+                        inline: Some(
+                            FunctionType {
+                                params: [
+                                    (
+                                        Some(
+                                            "a",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                    (
+                                        Some(
+                                            "b",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                ],
+                                results: [
+                                    I32,
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ),
+            Func(
+                Func {
+                    span: Span {
+                        offset: 1034,
+                    },
+                    id: Some(
+                        "add64_hi",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [
+                            "add64_hi",
+                        ],
+                    },
+                    kind: Inline {
+                        locals: [],
+                        expression: Expression {
+                            instrs: [
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                I64ExtendI32U,
+                                LocalGet(
+                                    Id(
+                                        "b",
+                                    ),
+                                ),
+                                I64ExtendI32U,
+                                I64Add,
+                                I64Const(
+                                    32,
+                                ),
+                                I64ShrU,
+                                I32WrapI64,
+                            ],
+                        },
+                    },
+                    ty: TypeUse {
+                        index: None,
+                        inline: Some(
+                            FunctionType {
+                                params: [
+                                    (
+                                        Some(
+                                            "a",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                    (
+                                        Some(
+                                            "b",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                ],
+                                results: [
+                                    I32,
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ),
+            Func(
+                Func {
+                    span: Span {
+                        offset: 1283,
+                    },
+                    id: Some(
+                        "mul64_hi",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [
+                            "mul64_hi",
+                        ],
+                    },
+                    kind: Inline {
+                        locals: [],
+                        expression: Expression {
+                            instrs: [
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                I64ExtendI32U,
+                                LocalGet(
+                                    Id(
+                                        "b",
+                                    ),
+                                ),
+                                I64ExtendI32U,
+                                I64Mul,
+                                I64Const(
+                                    32,
+                                ),
+                                I64ShrU,
+                                I32WrapI64,
+                            ],
+                        },
+                    },
+                    ty: TypeUse {
+                        index: None,
+                        inline: Some(
+                            FunctionType {
+                                params: [
+                                    (
+                                        Some(
+                                            "a",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                    (
+                                        Some(
+                                            "b",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                ],
+                                results: [
+                                    I32,
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ),
+            Func(
+                Func {
+                    span: Span {
+                        offset: 1823,
+                    },
+                    id: Some(
+                        "mul_big",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [
+                            "mul_big",
+                        ],
+                    },
+                    kind: Inline {
+                        locals: [],
+                        expression: Expression {
+                            instrs: [
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                I32Const(
+                                    42958,
+                                ),
+                                I32Add,
+                                I64ExtendI32U,
+                                I64Const(
+                                    8388608,
+                                ),
+                                I64Mul,
+                                I64Const(
+                                    16,
+                                ),
+                                I64ShrU,
+                                I32WrapI64,
+                            ],
+                        },
+                    },
+                    ty: TypeUse {
+                        index: None,
+                        inline: Some(
+                            FunctionType {
+                                params: [
+                                    (
+                                        Some(
+                                            "a",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                ],
+                                results: [
+                                    I32,
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ),
+            Func(
+                Func {
+                    span: Span {
+                        offset: 2069,
+                    },
+                    id: Some(
+                        "mul_big_hi",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [
+                            "mul_big_hi",
+                        ],
+                    },
+                    kind: Inline {
+                        locals: [],
+                        expression: Expression {
+                            instrs: [
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                I32Const(
+                                    305419896,
+                                ),
+                                I32Add,
+                                I64ExtendI32U,
+                                I32Const(
+                                    -1698898192,
+                                ),
+                                I64ExtendI32U,
+                                I64Mul,
+                                I64Const(
+                                    32,
+                                ),
+                                I64ShrU,
+                                I32WrapI64,
+                            ],
+                        },
+                    },
+                    ty: TypeUse {
+                        index: None,
+                        inline: Some(
+                            FunctionType {
+                                params: [
+                                    (
+                                        Some(
+                                            "a",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                ],
+                                results: [
+                                    I32,
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ),
+            Func(
+                Func {
+                    span: Span {
+                        offset: 2347,
+                    },
+                    id: Some(
+                        "shl_far",
+                    ),
+                    name: None,
+                    exports: InlineExport {
+                        names: [
+                            "shl_far",
+                        ],
+                    },
+                    kind: Inline {
+                        locals: [],
+                        expression: Expression {
+                            instrs: [
+                                LocalGet(
+                                    Id(
+                                        "a",
+                                    ),
+                                ),
+                                I64ExtendI32U,
+                                I64Const(
+                                    40,
+                                ),
+                                I64Shl,
+                                I64Const(
+                                    40,
+                                ),
+                                I64ShrU,
+                                I32WrapI64,
+                            ],
+                        },
+                    },
+                    ty: TypeUse {
+                        index: None,
+                        inline: Some(
+                            FunctionType {
+                                params: [
+                                    (
+                                        Some(
+                                            "a",
+                                        ),
+                                        None,
+                                        I32,
+                                    ),
+                                ],
+                                results: [
+                                    I32,
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ),
+        ],
+    ),
+}
+
+
+
+
+{
+    "LocalGet": 13,
+    "I64Const": 8,
+    "I32WrapI64": 8,
+    "I64ExtendI32U": 8,
+    "I64ExtendI32S": 6,
+    "I64ShrU": 6,
+    "I64Mul": 4,
+    "I32Const": 3,
+    "I64Add": 2,
+    "I32Add": 2,
+    "I64Sub": 1,
+    "I64Shl": 1,
+}

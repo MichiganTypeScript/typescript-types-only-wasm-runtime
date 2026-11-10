@@ -2,12 +2,12 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { Biome, Distribution } from "@biomejs/js-api";
 import { config, createResultFilePath, errorFilePath, finalResultPath, formatterErrorFilePath, resultsDirectory, resumeMode, shouldTakeABreath, startFilePath } from "./config";
-import { VirtualTypeScriptEnvironment } from "@typescript/vfs";
+import type { EvaluationEnvironment } from "./ts";
 import { inspect } from "node:util";
 import { join } from "node:path";
 
 export interface ProgramRun {
-  env: VirtualTypeScriptEnvironment;
+  env: EvaluationEnvironment;
   
   stopAt: number;
 
@@ -192,7 +192,7 @@ export const finalizeProgram = async ({
   lastInstructionCount: number;
   nextResultTypeName: string;
   resultTypeName: string;
-  env: VirtualTypeScriptEnvironment;
+  env: EvaluationEnvironment;
 }) => {
   const absoluteLastResult = createResultFilePath(lastInstructionCount)
   const relativeLastResult = absoluteLastResult.replace(resultsDirectory, ".");

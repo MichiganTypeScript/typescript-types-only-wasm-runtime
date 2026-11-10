@@ -1,0 +1,9 @@
+node_modules/
+package.json
+package-lock.json
+canary/
+.work/
+*.zip
+src/
+bin/
+api-shim.sh
