@@ -729,10 +729,10 @@
           <option value="e1m5_tas">E1M5: Phobos Lab — 0:34.69 UV-Speed TAS (1214 tics)</option>
           <option value="e1m6_tas">E1M6: Central Processing — 0:37.00 UV-Speed TAS (1295 tics)</option>
           <option value="e1m7_tas">E1M7: Computer Station — 0:52.66 UV-Speed TAS (1843 tics)</option>
-          <option value="e1m8_tas">E1M8: Phobos Anomaly (Boss Stage) — 0:16.74 UV-Speed TAS (586 tics)</option>
+            <option value="e1m8_tas">E1M8: Phobos Anomaly (Boss Stage) - 0:16.74 UV-Speed TAS (591 tics)</option>
         </optgroup>
         <optgroup label="Full Episode &amp; Classic E1M1 Runs">
-          <option value="ep1_tas">Episode 1 (All 8 Stages E1M1-E1M8) 3:23 UV-Speed TAS (7423 tics)</option>
+            <option value="ep1_tas">Episode 1 (All 8 Stages E1M1-E1M8) 3:23 UV-Speed TAS (7427 tics)</option>
           <option value="uvmax_tas">E1M1 0:18.97 UV-Max TAS — 100% Kills &amp; Secrets (672 tics)</option>
           <option value="uvspeed_rta">E1M1 0:08.74 UV-Speed / Pacifist RTA World Record (314 tics)</option>
           <option value="uvmax_rta">E1M1 0:24.83 UV-Max RTA World Record (877 tics)</option>
@@ -987,7 +987,8 @@ function legacySteps(text, ticsPerLine = 1) {
 // playback (bench/doom/tas-keys.mjs). Scripts never see these: playDemo,
 // extendDemo and setDemoTic become the memory writes below.
 const DEMO_AT = 8192;            // under the stack, which never gets this low
-const WIPE_GAMESTATE = 87000;    // 0 = GS_LEVEL (skips the 30-frame melt screen wipe)
+const WIPE_GAMESTATE = 87000; // 0 = GS_LEVEL, 2 = GS_FINALE (skips the 30-frame melt screen wipe)
+const FINALECOUNT = 4404916;  // F_Ticker's finale counter (1350 = full story text, 1575 = victory screen)
 const MAKETIC = 4403988;         // local ticcmd write cursor; setting == gametic removes 5-tic menu-boot lag
 const OLDENTERTICS = 4404760;    // NetUpdate's last-seen clock tic
 const GAMEMAP = 4406284;         // current stage number (1..9)
@@ -1088,7 +1089,8 @@ function tasScript(steps, note) {
   const words = start.poke.filter(([a]) => a < 65536).map(([, w]) => w);
   const tics = words.slice(0, words.indexOf(DEMO_END));
   const idleWords = idle ? idle.poke.slice(0, -1).map(([, w]) => w) : [];
-  const use = steps.at(-1).poke?.[0];
+  const isFinale = idleWords.length === 10;
+  const use = !isFinale ? steps.at(-1).poke?.[0] : undefined;
   const after = steps.length - startAt - 1;
   return `// Based on: ${note}
 ${SCRIPT_TOP}
@@ -1105,18 +1107,24 @@ ${moveLines(tics).join("\n")}
 type Inputs = Run<[
 ${stepLines(steps.slice(0, startAt)).join("\n")}
   { playDemo: Demo }, // restart E1M1 and replay Demo from its first tic
-${idle ? `${noneLines(idleAt - startAt - 1, "the demo plays; keys are ignored")}
+${idle ? `${noneLines(idleAt - startAt - 1, "the demo plays; keys are ignored")}${isFinale ? `
+  // E1M8 ends in a dark teleporter ambush room (sector special 11: <=10% health exit) with no
+  // FINISHED tally screen; extend the demo so G_ExitLevel -> F_StartFinale shows the Episode 1 ending
+  {
+    extendDemo: [
+      ...Repeat<{}, 10>,
+    ];
+  },
+  ...none<3>,\n` : `
   // The demo's last tic presses the exit switch. Doom then shows the E1M1 finished
   // screen, counting kills, items, secrets and TIME up from 0. Keep the demo going
   // ${idleWords.length} more tics so Doom has input while that happens.
   {
     extendDemo: [
-${extendLines(idleWords, use ? (use[0] - DEMO_AT) / 4 - tics.length : undefined, use?.[1]).map((l) => "    " + l).join("\n")}
+${extendLines(idleWords, use ? (use[0] - DEMO_AT) / 4 - tics.length : undefined, use?.[1]).map((l) => "      " + l).join("\n")}
     ];
   },
-${noneLines(steps.length - idleAt - 1)}
-` : `${noneLines(use ? after - 1 : after, "the demo plays; keys are ignored")}
-${use ? `  { setDemoTic: [${(use[0] - DEMO_AT) / 4}, ${moveType(use[1])}] },\n` : ""}`}]>;
+${noneLines(steps.length - idleAt - 1)}${use ? `  { setDemoTic: [${(use[0] - DEMO_AT) / 4}, ${moveType(use[1])}]; },\n` : ""}`}` : `${noneLines(steps.length - startAt - 1, "the demo plays; keys are ignored")}`}];
 `;
 }
 
@@ -1153,6 +1161,20 @@ function stepsFromLmp({ lmp, hold = 3 }) {
   }
   if (hold === 3) {
     steps.push({ keys: [], poke: [[DEMO_AT + (tics + 3) * 4, 2 << 24]] });
+  } else if (hold === 0) {
+    const FINALE_TICS = 10;
+    steps.push(
+      {
+        keys: [],
+        poke: [
+          ...Array.from({ length: FINALE_TICS }, (_, k) => [DEMO_AT + (tics + k) * 4, 0]),
+          [DEMO_AT + (tics + FINALE_TICS) * 4, DEMO_END],
+        ],
+      },
+      { keys: [] },
+      { keys: [], poke: [[WIPE_GAMESTATE, 2], [FINALECOUNT, 1350]] },
+      { keys: [], poke: [[FINALECOUNT, 1575]] },
+    );
   }
   return steps;
 }
@@ -1253,6 +1275,7 @@ function demoPokes(st, demoLen, i) {
     return {
       len: demoLen + w.length,
       poke: [...w.map((x, k) => [at + 4 * k, x]), [at + 4 * w.length, DEMO_END]],
+      nextPokes: w.length === 10 ? [undefined, [[WIPE_GAMESTATE, 2], [FINALECOUNT, 1350]], [[FINALECOUNT, 1575]]] : undefined,
     };
   }
   if (st.setDemoTic) {
@@ -1297,17 +1320,18 @@ async function evalScript() {
   const res = await worker.evalInputs(SCRIPT_URI);
   if (res.error) throw new Error(res.error);
   let demoLen;
-  let carryPoke;
+  const carryPokes = [];
   const steps = res.steps.map((st, i) => {
     for (const k of st.keys) if (!BITS.includes(k)) throw new Error(`Inputs[${i}]: "${k}" is not a Key`);
     const resPoke = demoPokes(st, demoLen, i);
     demoLen = resPoke.len;
     let poke = resPoke.poke;
-    if (carryPoke) {
-      poke = poke ? [...carryPoke, ...poke] : carryPoke;
-      carryPoke = undefined;
+    if (carryPokes.length) {
+      const carryPoke = carryPokes.shift();
+      if (carryPoke) poke = poke ? [...carryPoke, ...poke] : carryPoke;
     }
-    if (resPoke.nextPoke) carryPoke = resPoke.nextPoke;
+    if (resPoke.nextPoke) carryPokes.push(resPoke.nextPoke);
+    if (resPoke.nextPokes) carryPokes.push(...resPoke.nextPokes);
     return { keys: st.keys, poke };
   });
   const labels = labelsOf(steps);
@@ -1333,9 +1357,11 @@ function demoAction(poke) {
   if (poke.some(([a]) => a === DEMO_P)) return mapPoke ? `warp E1M${mapPoke[1]} + play demo (${n} tics)` : `play demo (${n} tics)`;
   if (mapPoke) return boss ? `warp E1M${mapPoke[1]} boss arena` : `warp E1M${mapPoke[1]}`;
   if (n >= 0 && n === poke.length - 1) return `extend demo (${n} tics)`;
-  if (poke.length === 1 && poke[0][0] >= DEMO_AT) return `set demo tic ${(poke[0][0] - DEMO_AT) / 4}`;
+  if (poke.length === 1 && poke[0][0] >= DEMO_AT && poke[0][0] < 65536) return `set demo tic ${(poke[0][0] - DEMO_AT) / 4}`;
   if (poke.every(([a, w]) => a >= DEMO_AT && a < 65536 && w !== DEMO_END)) return "";
   if (poke.some(([a]) => a === PLAYER0_PSPRITE_STATE)) return "equip weapon";
+  if (poke.some(([a, w]) => a === FINALECOUNT && w === 1350)) return "Episode 1 victory text";
+  if (poke.some(([a, w]) => a === FINALECOUNT && w === 1575)) return "Episode 1 victory screen";
   return `write memory (${poke.length})`;
 }
 
@@ -2525,7 +2551,7 @@ function stageTasScript(sp) {
   for (let i = sp.start; i < sp.end; i++) tics.push(view.getUint32(i * 4, true));
   const isBoss = sp.map === 8;
   const ext = isBoss
-    ? `  {\n    extendDemo: [\n      ...Repeat<{}, 10>, // fade into the Episode 1 victory finale screen\n    ],\n  },\n  ...none<2>,`
+    ? `  {\n    extendDemo: [\n      ...Repeat<{}, 10>, // fade into the Episode 1 victory finale screen\n    ],\n  },\n  ...none<3>,`
     : `  // The demo's last tic presses the exit switch. Doom then shows the E1M${sp.map} finished\n  // screen, counting kills, items, secrets and TIME up from 0. Keep the demo going\n  // 40 more tics so Doom has input while that happens.\n  {\n    extendDemo: [\n      ...Repeat<{}, 3>, // the screen wipes to the finished screen\n      { use: true }, // Use skips the count-up, so the final TIME shows at once\n      ...Repeat<{}, 36>,\n    ],\n  },\n  ...none<3>,`;
   return `// Based on: almostmatt1 & 38_ViTa_38's ${sp.title} ${sp.time} UV-Speed TAS (Frame-1 Stage Split)
 // One element per tic, starting directly on E1M${sp.map}. Edit any line, then Run.
@@ -2931,7 +2957,7 @@ function showRestored(run) {
   // Runs saved by a checker the page no longer offers continue on tsgo-doom (the worker falls back too).
   if (!checkerSel.value) checkerSel.value = "tsgo-doom";
   try { localStorage.setItem("doom-checker", checkerSel.value); } catch {}
-  if (run.t.startsWith(`// Based on: ${window.PRESETS.ep1_tas.note}`) && !run.t.includes("weapon:")) {
+  if (run.t.startsWith(`// Based on: ${window.PRESETS.ep1_tas.note}`) && (!run.t.includes("weapon:") || !run.t.includes("extendDemo:"))) {
     frames = run.frames;
     loadPreset("ep1_tas");
     runCurrent();
@@ -2950,10 +2976,10 @@ function showRestored(run) {
     archived = `${runKey}:${frames.length}:finished`;
     progress = `done: ${frames.length} frames${run.elapsedMs ? ` in ${fmtTime(run.elapsedMs)}` : ""} (saved run)`;
     scrub.max = String(Math.max(0, frames.length - 1));
-    cur = 0;
+    cur = Math.max(0, frames.length - 1);
     playing = false;
     playBtn.textContent = "Play";
-    drawFrame(0);
+    drawFrame(cur);
     drawHud();
     updateEditorStatusDecorations();
     updateTscSlideshow();
